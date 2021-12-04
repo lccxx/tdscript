@@ -11,8 +11,12 @@ include_directories(${PROJECT_BINARY_DIR}/include)
 
 message("* ${PROJECT_NAME} v${PROJECT_VERSION}")
 
+option(WITH_STATIC "link statically" OFF)
 option(WITH_TESTS "make with tests" ON)
 
+add_subdirectory(lib/td)
+
+SET(LIBRARIES Td::TdStatic Td::TdJson)
 include_directories(include)
 SET(SOURCES src/client.cc)
 
@@ -36,4 +40,5 @@ if (WITH_TESTS)
     endfunction(add_gtest)
 
     add_gtest(test/client_test.cc)
+    add_gtest(test/client_tdjson_test.cc)
 endif (WITH_TESTS)
