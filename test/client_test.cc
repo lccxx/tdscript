@@ -1,20 +1,23 @@
 // created by lich 12/04/2020, no copyright no copyleft
 
+#include "tdscript/client.h"
+
 #include "gtest/gtest.h"
 
 #include <td/telegram/Client.h>
 #include <td/telegram/td_api.h>
 #include <td/telegram/td_api.hpp>
 
-#include "tdscript/version.h"
-#include "tdscript/client.h"
+#include <cstdio>
 
 
 TEST(RandomTest, Create) {
   EXPECT_EQ(1, 1) << "1 == 1";
-  EXPECT_EQ(TDSCRIPT_VERSION_MAJOR, 0) << "major verion";
-  EXPECT_EQ(TDSCRIPT_VERSION_MINOR, 1) << "minor version";
+  EXPECT_EQ("0.1", tdscript::version) << "version";
 
-  std::unique_ptr<td::ClientManager> client_manager_ = std::make_unique<td::ClientManager>();
-  EXPECT_EQ(1, client_manager_->create_client_id());
+  auto client = tdscript::Client();
+  client.send_request(td::td_api::make_object<td::td_api::getOption>("version"));
+  client.loop();
+
+  //std::cout << response.request_id << " " << td::td_api::to_string(update) << std::endl;
 }
