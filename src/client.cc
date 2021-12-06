@@ -110,6 +110,16 @@ namespace tdscript {
         task_queue[tasks_counter].clear();
         tasks_counter += 1;
 
+        for (const auto kv : last_extent_at) {
+          auto chat_id = kv.first;
+          if (pending_extend_mesages[chat_id].size() != 0) {
+            send_extend(chat_id);
+          }
+          if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] > EXTEND_TIME) {
+            send_extend(chat_id);
+          }
+        }
+
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
       }
     }).detach();
@@ -180,16 +190,6 @@ namespace tdscript {
 
             save_flag = true;
           }
-        }
-      }
-
-      for (const auto kv : pending_extend_mesages) {
-        auto chat_id = kv.first;
-        if (pending_extend_mesages[chat_id].size() != 0) {
-          send_extend(chat_id);
-        }
-        if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] > EXTEND_TIME) {
-          send_extend(chat_id);
         }
       }
     }
@@ -316,25 +316,22 @@ namespace tdscript {
         if (std::regex_search(word, colon_match, colon_regex)) {
           std::string key = colon_match[1];
           std::string value = colon_match.suffix();
-          if (key.empty() || value.empty()) {
-            continue;
-          }
           if (i == 0) {
-            player_count[std::stoi(key)] = std::stoi(value);
+            player_count[std::stoll(key)] = std::stoi(value);
           }
           if (i == 1) {
-            has_owner[std::stoi(key)] = std::stoi(value);
+            has_owner[std::stoll(key)] = std::stoi(value);
           }
           if (i == 2) {
             std::smatch stick_match;
             while (std::regex_search(value, stick_match, stick_regex)) {
               std::string a = stick_match[1];
-              pending_extend_mesages[std::stoi(key)].push_back(std::stoi(a));
+              pending_extend_mesages[std::stoll(key)].push_back(std::stoll(a));
               value = stick_match.suffix();
             }
           }
           if (1 == 3) {
-            last_extent_at[std::stoi(key)] = std::stoi(value);
+            last_extent_at[std::stoll(key)] = std::stoull(value);
           }
         }
         line = comma_match.suffix();
