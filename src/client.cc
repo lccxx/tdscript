@@ -235,7 +235,6 @@ namespace tdscript {
       has_owner[chat_id] = 1;
     }
 
-
     const std::regex cancel_regex("游戏取消|目前没有进行中的游戏|游戏启动中");
     std::smatch cancel_match;
     if (std::regex_search(text, cancel_match, cancel_regex)) {
