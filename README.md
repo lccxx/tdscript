@@ -1,6 +1,6 @@
 # a telegram bot script
 
-base on [TDLib](https://github.com/tdlib/td)
+base on [TDLib](https://github.com/lccxz/td)
 
 get & build & test & run
 ```bash
