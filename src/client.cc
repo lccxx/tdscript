@@ -13,6 +13,12 @@ namespace tdscript {
   void quit(int signum) { stop = true; }
 
   Client::Client() {
+    assert(std::getenv("HOME") != NULL);
+    assert(std::getenv("TG_API_ID") != NULL);
+    assert(std::getenv("TG_API_HASH") != NULL);
+    assert(std::getenv("TG_DB_ENCRYPTION_KEY") != NULL);
+    assert(std::getenv("TG_PHOME_NUMBER") != NULL);
+
     td::ClientManager::execute(td::td_api::make_object<td::td_api::setLogVerbosityLevel>(0));
     client_manager = std::make_unique<td::ClientManager>();
     client_id = client_manager->create_client_id();
@@ -47,12 +53,6 @@ namespace tdscript {
   }
 
   void Client::loop() {
-    assert(std::getenv("HOME") != NULL);
-    assert(std::getenv("TG_API_ID") != NULL);
-    assert(std::getenv("TG_API_HASH") != NULL);
-    assert(std::getenv("TG_DB_ENCRYPTION_KEY") != NULL);
-    assert(std::getenv("TG_PHOME_NUMBER") != NULL);
-
     signal(SIGINT, quit);
     signal(SIGTERM, quit);
 
@@ -68,7 +68,7 @@ namespace tdscript {
       }
 
       auto update = std::move(response.object);
-      std::cout << response.request_id << " " << td::td_api::to_string(update) << std::endl;
+      // std::cout << response.request_id << " " << td::td_api::to_string(update) << std::endl;
 
       if (td::td_api::updateAuthorizationState::ID == update.get()->get_id()) {
         auto state_id = static_cast<td::td_api::updateAuthorizationState*>(update.get())->authorization_state_.get()->get_id();

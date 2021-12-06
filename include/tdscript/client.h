@@ -38,7 +38,11 @@ namespace tdscript {
     void send_password();
 
     inline td::ClientManager::Response get_response() {
-      return client_manager->receive(timeout);
+      if (authorized) {
+        return client_manager->receive(1);
+      } else {
+        return client_manager->receive(timeout);
+      }
     }
 
     void loop();

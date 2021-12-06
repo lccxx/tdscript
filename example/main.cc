@@ -2,11 +2,9 @@
 
 #include "tdscript/client.h"
 
-#include "stdio.h"
-
 
 int main(int argc, char **args) {
-  printf("hi!\n");
+  tdscript::Client().loop();
 
   return 0;
 }

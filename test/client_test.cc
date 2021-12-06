@@ -17,7 +17,14 @@ TEST(RandomTest, Create) {
 
   auto client = tdscript::Client();
   client.send_request(td::td_api::make_object<td::td_api::getOption>("version"));
-  client.loop();
 
-  //std::cout << response.request_id << " " << td::td_api::to_string(update) << std::endl;
+  signal(SIGINT, tdscript::quit);
+  signal(SIGTERM, tdscript::quit);
+
+  while (!tdscript::stop) {
+    client.client_manager->receive(1);
+  }
+  
+
+  // std::cout << response.request_id << " " << td::td_api::to_string(update) << std::endl;
 }
