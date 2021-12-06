@@ -1,4 +1,4 @@
-// created by lich 12/05/2020, no copyright no copyleft
+// created by lich 12/05/2020, no copyright
 
 #include "gtest/gtest.h"
 
