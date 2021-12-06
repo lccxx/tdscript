@@ -4,27 +4,29 @@
 
 #include "gtest/gtest.h"
 
-#include <td/telegram/Client.h>
-#include <td/telegram/td_api.h>
-#include <td/telegram/td_api.hpp>
-
-#include <cstdio>
-
 
 TEST(RandomTest, Create) {
   EXPECT_EQ(1, 1) << "1 == 1";
-  EXPECT_EQ("0.1", tdscript::version) << "version";
+  EXPECT_EQ("0.1", tdscript::VERSION) << "version";
 
-  auto client = tdscript::Client();
-  client.send_request(td::td_api::make_object<td::td_api::getOption>("version"));
+  auto client = tdscript::Client(1023);
 
   signal(SIGINT, tdscript::quit);
   signal(SIGTERM, tdscript::quit);
 
+  client.send_request(td::td_api::make_object<td::td_api::getOption>("version"));
   while (!tdscript::stop) {
-    client.client_manager->receive(1);
+    auto response = client.client_manager->receive(9);
+    if (response.request_id == 0 && response.object) {
+      auto update = std::move(response.object);
+      if (td::td_api::updateAuthorizationState::ID == update->get_id()) {
+        auto state_id = static_cast<td::td_api::updateAuthorizationState*>(update.get())->authorization_state_.get()->get_id();
+        if (td::td_api::authorizationStateWaitTdlibParameters::ID == state_id) {
+          client.send_parameters();
+        } else if (td::td_api::authorizationStateWaitEncryptionKey::ID == state_id) {
+          client.send_request(td::td_api::make_object<td::td_api::checkDatabaseEncryptionKey>(std::getenv("TG_DB_ENCRYPTION_KEY")));
+        }
+      }
+    }
   }
-  
-
-  // std::cout << response.request_id << " " << td::td_api::to_string(update) << std::endl;
 }
