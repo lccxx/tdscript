@@ -26,6 +26,7 @@ namespace tdscript {
   std::unordered_map<std::int64_t, std::uint8_t> has_owner;
   std::unordered_map<std::int64_t, std::vector<std::int64_t>> pending_extend_mesages;
   std::unordered_map<std::int64_t, std::uint64_t> last_extent_at;
+  std::unordered_map<std::int64_t, std::int64_t> players_message;
 
   std::unordered_map<std::uint64_t, std::vector<std::function<void()>>> task_queue;
   std::uint64_t tasks_counter = 0;
@@ -92,6 +93,11 @@ namespace tdscript {
     send_request(td::td_api::make_object<td::td_api::deleteMessages>(chat_id, std::move(message_ids), true));
   }
 
+  void Client::get_message(std::int64_t chat_id, std::int64_t msg_id) {
+    std::vector<std::int64_t> message_ids = { msg_id };
+    send_request(td::td_api::make_object<td::td_api::getMessages>(chat_id, std::move(message_ids)));
+  }
+
   void Client::loop() {
     signal(SIGINT, quit);
     signal(SIGTERM, quit);
@@ -110,13 +116,20 @@ namespace tdscript {
         task_queue[tasks_counter].clear();
         tasks_counter += 1;
 
-        for (const auto kv : last_extent_at) {
+        for (const auto kv : player_count) {
           auto chat_id = kv.first;
           if (pending_extend_mesages[chat_id].size() != 0) {
             send_extend(chat_id);
           }
           if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] > EXTEND_TIME) {
             send_extend(chat_id);
+          }
+        }
+        for (const auto kv : players_message) {  // confirm the number of players
+          auto chat_id = kv.first;
+          auto msg_id = kv.second;
+          if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] > EXTEND_TIME / 2) {
+            get_message(chat_id, msg_id);
           }
         }
 
@@ -134,16 +147,12 @@ namespace tdscript {
 
       auto response = client_manager->receive(timeout);
 
-      if (response.request_id != 0) {
-        continue;
-      }
-
       if (!response.object) {
         continue;
       }
 
       auto update = std::move(response.object);
-      // std::cout << response.request_id << " " << td::td_api::to_string(update) << std::endl;
+      std::cout << response.request_id << " " << td::td_api::to_string(update) << std::endl;
 
       if (td::td_api::updateAuthorizationState::ID == update->get_id()) {
         auto state_id = static_cast<td::td_api::updateAuthorizationState*>(update.get())->authorization_state_->get_id();
@@ -171,8 +180,8 @@ namespace tdscript {
         }
       }
 
-      if (td::td_api::updateChatLastMessage::ID == update->get_id()) {
-        auto msg = std::move(static_cast<td::td_api::updateChatLastMessage*>(update.get())->last_message_);
+      if (td::td_api::updateNewMessage::ID == update->get_id()) {
+        auto msg = std::move(static_cast<td::td_api::updateNewMessage*>(update.get())->message_);
         if (msg && td::td_api::messageSenderUser::ID == msg->sender_->get_id()) {
           auto chat_id = msg->chat_id_;
           auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_.get())->user_id_;
@@ -196,17 +205,17 @@ namespace tdscript {
   }
 
   void Client::send_extend(std::int64_t chat_id) {
-    if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] < 3) {
-      return;
-    }
     if (!has_owner[chat_id]) {
       return;
     }
     if (player_count[chat_id] >= 5) {
       return;
     }
-
+    if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] < 3) {
+      return;
+    }
     last_extent_at[chat_id] = std::time(nullptr);
+
     send_text(chat_id, EXTEND_TEXT);
   }
 
@@ -216,10 +225,10 @@ namespace tdscript {
     if (std::regex_search(text, players_match, players_regex)) {
       if (players_match.size() == 2) {
         player_count[chat_id] = std::stoi(players_match[1]);
-
-        if (player_count[chat_id] == 0 || !last_extent_at[chat_id]) {
+        if (players_message[chat_id] != msg_id) {
           last_extent_at[chat_id] = std::time(nullptr);
         }
+        players_message[chat_id] = msg_id;
       }
     }
     if (player_count[chat_id] >= 5) {
@@ -291,6 +300,7 @@ namespace tdscript {
     ofs << m2s(has_owner) << '\n';
     ofs << ma2s(pending_extend_mesages) << '\n';
     ofs << m2s(last_extent_at) << '\n';
+    ofs << m2s(players_message) << '\n';
 
     ofs.close();
 
@@ -331,6 +341,9 @@ namespace tdscript {
           }
           if (1 == 3) {
             last_extent_at[std::stoll(key)] = std::stoull(value);
+          }
+          if (1 == 4) {
+            players_message[std::stoll(key)] = std::stoll(value);
           }
         }
         line = comma_match.suffix();
