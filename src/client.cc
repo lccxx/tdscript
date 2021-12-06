@@ -307,7 +307,7 @@ namespace tdscript {
     std::regex colon_regex("([^:]*):");
     std::regex stick_regex("([^|]*)\\|");
     std::string line = "";
-    for (std::int32_t i = 0; getline(file, line); i++) {
+    for (std::int32_t i = 0; std::getline(file, line); i++) {
       std::smatch comma_match;
       while (std::regex_search(line, comma_match, comma_regex)) {
         std::string word = comma_match[1];
