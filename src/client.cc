@@ -25,6 +25,7 @@ namespace tdscript {
   const std::vector<std::string> AT_LIST = { "@JulienKM" };
   const std::unordered_map<std::int64_t, std::int64_t> STICKS_STARTING = { { -681384622, 356104798208 } };
 
+  bool data_ready = false;
   std::unordered_map<std::int64_t, std::int32_t> player_count;
   std::unordered_map<std::int64_t, std::uint8_t> has_owner;
   std::unordered_map<std::int64_t, std::vector<std::int64_t>> pending_extend_mesages;
@@ -158,12 +159,8 @@ namespace tdscript {
 
     std::function<void()> f = [this]() {};
 
-    std::thread([this] {  // tasks loop
+    std::thread([this] {  // tasks loop thread
       while(!stop) {
-        if (save_flag) {
-          save();
-        }
-
         // take out the current tasks & args, and process
         for (int i = 0; i < task_queue[tasks_counter].size(); i++) {
           task_queue[tasks_counter][i](task_queue_args[tasks_counter][i]);
@@ -193,6 +190,8 @@ namespace tdscript {
             }
           }
         }
+
+        save();
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
       }
@@ -387,6 +386,10 @@ namespace tdscript {
   }
 
   void Client::save() {
+    if (!data_ready) { return; }
+    if (!save_flag) { return; }
+    save_flag = false;
+
     std::ofstream ofs;
     ofs.open (SAVE_FILENAME, std::ofstream::out | std::ofstream::binary);
 
@@ -398,13 +401,12 @@ namespace tdscript {
     ofs << m2s(need_extend) << '\n';
 
     ofs.close();
-
-    save_flag = false;
   }
 
   void Client::load() {
     std::ifstream file(SAVE_FILENAME);
     if (!file.good()) {
+      data_ready = true;
       return ;
     }
 
@@ -447,5 +449,6 @@ namespace tdscript {
         line = comma_match.suffix();
       }
     }
+    data_ready = true;
   }
 }  // namespace tdscript
