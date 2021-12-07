@@ -89,6 +89,22 @@ namespace tdscript {
     send_request(std::move(send_message));
   }
 
+  void Client::send_start(std::int64_t chat_id, std::int64_t bot_id, std::string link) {
+    auto send_message = td::td_api::make_object<td::td_api::sendBotStartMessage>();
+    send_message->chat_id_ = chat_id;
+    send_message->bot_user_id_ = bot_id;
+    send_message->parameter_ = link;
+    send_request(std::move(send_message));
+  }
+
+  void Client::send_extend(std::int64_t chat_id) {
+    if (!has_owner[chat_id]) { return; }
+    if (player_count[chat_id] >= 5) { return; }
+    if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] < 3) { return; }
+    last_extent_at[chat_id] = std::time(nullptr);
+    send_text(chat_id, EXTEND_TEXT);
+  }
+
   void Client::delete_messages(std::int64_t chat_id, std::vector<std::int64_t> message_ids) {
     send_request(td::td_api::make_object<td::td_api::deleteMessages>(chat_id, std::move(message_ids), true));
   }
@@ -180,55 +196,82 @@ namespace tdscript {
         }
       }
 
+      td::td_api::object_ptr<td::td_api::message> msg = nullptr;
+
+      if (td::td_api::messages::ID == update->get_id()) {  // from get_message
+        auto msgs = static_cast<td::td_api::messages*>(update.get())->messages_;
+        if (msgs.size() == 1) {
+          msg = std::move(msgs[0]);
+        }
+      }
+
       if (td::td_api::updateNewMessage::ID == update->get_id()) {
-        auto msg = std::move(static_cast<td::td_api::updateNewMessage*>(update.get())->message_);
-        if (msg && td::td_api::messageSenderUser::ID == msg->sender_->get_id()) {
-          auto chat_id = msg->chat_id_;
-          auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_.get())->user_id_;
+        msg = std::move(static_cast<td::td_api::updateNewMessage*>(update.get())->message_);
+      }
 
-          if (td::td_api::messageText::ID == msg->content_->get_id()) {
-            auto text = static_cast<td::td_api::messageText*>(msg->content_.get())->text_->text_;
+      if (msg && td::td_api::messageSenderUser::ID == msg->sender_->get_id()) {
+        auto chat_id = msg->chat_id_;
+        auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_.get())->user_id_;
+        std::string text = "";
+        std::string link = "";
 
-            std::cout << "msg: " << user_id << " -> " << chat_id << ", " << text << std::endl;
-            if (user_id == USER_ID_WEREWOLF) {
-              process_werewolf(chat_id, msg->id_, text);
+        if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
+          text = static_cast<td::td_api::messageText*>(msg->content_.get())->text_->text_;
+        }
+        if (msg->reply_markup_ && td::td_api::replyMarkupInlineKeyboard::ID == msg->reply_markup_->get_id()) {
+          auto rows = static_cast<td::td_api::replyMarkupInlineKeyboard*>(msg->reply_markup_.get())->rows_;
+          if (rows.size() == 1) {
+            auto row = rows[0];
+            if (row.size() == 1) {
+              if (row[0].get()->type_ && td::td_api::inlineKeyboardButtonTypeUrl::ID == row[0].get()->type_->get_id()) {
+                link = static_cast<td::td_api::inlineKeyboardButtonTypeUrl*>(row[0].get()->type_.get())->url_;
+              }
             }
-            if (text == EXTEND_TEXT) {
-              pending_extend_mesages[chat_id].push_back(msg->id_);
-            }
-
-            save_flag = true;
           }
+        }
+
+        process_message(chat_id, msg->id_, user_id, text, link);
+      }
+
+      if (td::td_api::updateMessageContent::ID == update->get_id()) {
+        auto umsg = static_cast<td::td_api::updateMessageContent*>(update.get());
+        auto msg_id = umsg->message_id_;
+        auto chat_id = umsg->chat_id_;
+        if (td::td_api::messageText::ID == umsg->new_content_->get_id()) {
+          auto text = static_cast<td::td_api::messageText*>(umsg->new_content_.get())->text_->text_;
+          process_message(chat_id, msg_id, 0, text, "");
         }
       }
     }
   }
 
-  void Client::send_extend(std::int64_t chat_id) {
-    if (!has_owner[chat_id]) {
-      return;
-    }
-    if (player_count[chat_id] >= 5) {
-      return;
-    }
-    if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] < 3) {
-      return;
-    }
-    last_extent_at[chat_id] = std::time(nullptr);
+  void Client::process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, std::string text, std::string link) {
+    std::cout << "msg(" << msg_id << "): " << user_id << " -> " << chat_id << ", " << text << std::endl;
 
-    send_text(chat_id, EXTEND_TEXT);
+    if (user_id == USER_ID_WEREWOLF || user_id == 0) {
+      process_werewolf(chat_id, msg_id, user_id, text, link);
+    }
+
+    if (text == EXTEND_TEXT) {
+      pending_extend_mesages[chat_id].push_back(msg_id);
+    }
+
+    save_flag = true;
   }
 
-  void Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_id, std::string text) {
+  void Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, std::string text, std::string link) {
     const std::regex players_regex("^#players: (\\d+)");
     std::smatch players_match;
     if (std::regex_search(text, players_match, players_regex)) {
       if (players_match.size() == 2) {
         player_count[chat_id] = std::stoi(players_match[1]);
-        if (players_message[chat_id] != msg_id) {
-          last_extent_at[chat_id] = std::time(nullptr);
+
+        if (user_id) {
+          if (players_message[chat_id] != msg_id) {
+            last_extent_at[chat_id] = std::time(nullptr);
+          }
+          players_message[chat_id] = msg_id;
         }
-        players_message[chat_id] = msg_id;
       }
     }
     if (player_count[chat_id] >= 5) {
@@ -238,10 +281,16 @@ namespace tdscript {
       return;
     }
 
-    const std::regex owner_regex("lccc");
-    std::smatch owner_match;
-    if (std::regex_search(text, owner_match, owner_regex)) {
-      has_owner[chat_id] = 1;
+    if (msg_id == players_message[chat_id]) {
+      const std::regex owner_regex("lccc");
+      std::smatch owner_match;
+      if (std::regex_search(text, owner_match, owner_regex)) {
+        has_owner[chat_id] = 1;
+      }
+    }
+
+    if (!has_owner[chat_id] && user_id && !link.empty()) {
+      send_start(chat_id, user_id, link);
     }
 
     const std::regex cancel_regex("游戏取消|目前没有进行中的游戏|游戏启动中");
