@@ -264,6 +264,12 @@ namespace tdscript {
       pending_extend_mesages[chat_id].push_back(msg_id);
     }
 
+    const std::regex starting_regex("游戏启动中");
+    std::smatch starting_match;
+    if (std::regex_search(text, starting_match, starting_regex)) {
+      for (const auto at : AT_LIST) { send_text(chat_id, at); }
+    }
+
     save_flag = true;
   }
 
