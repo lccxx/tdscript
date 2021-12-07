@@ -312,7 +312,7 @@ namespace tdscript {
       if (players_match.size() == 2) {
         player_count[chat_id] = std::stoi(players_match[1]);
 
-        if (user_id) {
+        if (user_id && msg_id) {
           if (players_message[chat_id] != msg_id) {
             last_extent_at[chat_id] = std::time(nullptr);
           }
