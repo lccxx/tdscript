@@ -117,8 +117,9 @@ namespace tdscript {
     send_message->parameter_ = param;
     send_request(std::move(send_message));
 
-    task_queue_args[tasks_counter + 1].push_back({ std::to_string(chat_id), std::to_string(bot_id), link });
-    task_queue[tasks_counter + 1].push_back([this](std::vector<std::string> args) {
+    // add to task queue, resend after 3 seconds
+    task_queue_args[tasks_counter + 3].push_back({ std::to_string(chat_id), std::to_string(bot_id), link });
+    task_queue[tasks_counter + 3].push_back([this](std::vector<std::string> args) {
       send_start(std::stoll(args[0]), std::stoll(args[1]), args[2]);
     });
   }
