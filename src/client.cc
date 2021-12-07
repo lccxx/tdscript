@@ -164,6 +164,7 @@ namespace tdscript {
           save();
         }
 
+        // take out the current tasks & args, and process
         for (int i = 0; i < task_queue[tasks_counter].size(); i++) {
           task_queue[tasks_counter][i](task_queue_args[tasks_counter][i]);
         }
@@ -171,6 +172,7 @@ namespace tdscript {
         task_queue_args[tasks_counter].clear();
         tasks_counter += 1;
 
+        // confirm the extend
         for (const auto kv : player_count) {
           auto chat_id = kv.first;
           if (pending_extend_mesages[chat_id].size() != 0) {
@@ -180,7 +182,9 @@ namespace tdscript {
             send_extend(chat_id);
           }
         }
-        for (const auto kv : players_message) {  // confirm the number of players
+
+        // confirm the number of players
+        for (const auto kv : players_message) {
           auto chat_id = kv.first;
           auto msg_id = kv.second;
           if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] > EXTEND_TIME / 2) {
