@@ -12,6 +12,7 @@ cmake -S . -B build
 # cmake -DWITH_STATIC=ON -DWITH_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -S . -B build-release
 
 cmake --build build
+# cmake --build build-release
 
 build/tdscript_test_client_test
 
