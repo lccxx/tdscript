@@ -21,6 +21,7 @@ namespace tdscript {
   const std::int64_t USER_ID_WEREWOLF = 175844556;
   const std::int32_t EXTEND_TIME = 123;
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ").append(std::to_string(EXTEND_TIME));
+  const std::vector<std::string> AT_LIST = { "@JulienKM" };
 
   std::unordered_map<std::int64_t, std::int32_t> player_count;
   std::unordered_map<std::int64_t, std::uint8_t> has_owner;
@@ -274,8 +275,10 @@ namespace tdscript {
         player_count[chat_id] = std::stoi(players_match[1]);
 
         if (user_id) {
-          if (players_message[chat_id] != msg_id) {
+          if (players_message[chat_id] != msg_id) {  // starting
             last_extent_at[chat_id] = std::time(nullptr);
+
+            for (const auto at : AT_LIST) { send_text(chat_id, at); }
           }
           players_message[chat_id] = msg_id;
         }
