@@ -2,7 +2,6 @@
 
 #include "tdscript/client.h"
 
-
 int main(int argc, char **args) {
   tdscript::Client().loop();
 

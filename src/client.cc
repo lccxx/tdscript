@@ -21,7 +21,7 @@ namespace tdscript {
   const std::int64_t USER_ID_WEREWOLF = 175844556;
   const std::int32_t EXTEND_TIME = 123;
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ").append(std::to_string(EXTEND_TIME));
-  const std::vector<std::string> AT_LIST = { "@JulienKM" };
+  const std::vector<std::string> AT_LIST = { "@LYYBECK", "@JulienKM" };
   const std::unordered_map<std::int64_t, std::int64_t> STICKS_STARTING = { { -681384622, 356104798208 } };
 
   std::unordered_map<std::int64_t, std::int32_t> player_count;
