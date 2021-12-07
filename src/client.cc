@@ -12,6 +12,7 @@
 
 #include <signal.h>
 
+
 namespace tdscript {
   const std::string VERSION = std::to_string(TDSCRIPT_VERSION_MAJOR).append(".").append(std::to_string(TDSCRIPT_VERSION_MINOR));
 
@@ -21,7 +22,7 @@ namespace tdscript {
   const std::int64_t USER_ID_WEREWOLF = 175844556;
   const std::int32_t EXTEND_TIME = 123;
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ").append(std::to_string(EXTEND_TIME));
-  const std::vector<std::string> AT_LIST = { "@LYYBECK", "@JulienKM" };
+  const std::vector<std::string> AT_LIST = { "@JulienKM" };
   const std::unordered_map<std::int64_t, std::int64_t> STICKS_STARTING = { { -681384622, 356104798208 } };
 
   std::unordered_map<std::int64_t, std::int32_t> player_count;
@@ -309,12 +310,6 @@ namespace tdscript {
         }
       }
     }
-    if (player_count[chat_id] >= 5) {
-      has_owner[chat_id] = 0;
-      pending_extend_mesages[chat_id].clear();
-      last_extent_at[chat_id] = 0;
-      return;
-    }
 
     if (msg_id == players_message[chat_id]) {
       const std::regex owner_regex("lccc");
@@ -326,15 +321,6 @@ namespace tdscript {
 
     if (!has_owner[chat_id] && user_id && !link.empty()) {
       send_start(user_id, link);
-    }
-
-    const std::regex cancel_regex("游戏取消|目前没有进行中的游戏|游戏启动中");
-    std::smatch cancel_match;
-    if (std::regex_search(text, cancel_match, cancel_regex)) {
-      has_owner[chat_id] = 0;
-      pending_extend_mesages[chat_id].clear();
-      last_extent_at[chat_id] = 0;
-      return;
     }
 
     const std::regex remain_regex("还有 1 分钟|还剩 \\d+ 秒");
@@ -350,6 +336,14 @@ namespace tdscript {
       delete_messages(chat_id, pending_extend_mesages[chat_id]);
 
       pending_extend_mesages[chat_id].clear();
+    }
+
+    const std::regex cancel_regex("游戏取消|目前没有进行中的游戏|游戏启动中");
+    std::smatch cancel_match;
+    if (std::regex_search(text, cancel_match, cancel_regex)) {
+      has_owner[chat_id] = 0;
+      pending_extend_mesages[chat_id].clear();
+      last_extent_at[chat_id] = 0;
     }
   }
 
