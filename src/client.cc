@@ -289,7 +289,7 @@ namespace tdscript {
   }
 
   void Client::process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, std::string text, std::string link) {
-    std::cout << "msg(" << msg_id << "): " << user_id << " -> " << chat_id << ", " << text << std::endl;
+    std::cout << "msg(" << msg_id << "): " << user_id << " -> " << chat_id << ", " << text << "\n\n";
 
     if (user_id == USER_ID_WEREWOLF || user_id == 0) {
       process_werewolf(chat_id, msg_id, user_id, text, link);
