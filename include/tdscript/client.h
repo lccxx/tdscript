@@ -31,9 +31,7 @@ namespace tdscript {
     Client();
     Client(std::int32_t log_verbosity_level);
 
-    inline void send_request(td::td_api::object_ptr<td::td_api::Function> f) {
-      client_manager->send(client_id, current_query_id++, std::move(f));
-    }
+    inline void send_request(td::td_api::object_ptr<td::td_api::Function> f);
     void send_parameters();
     void send_code();
     void send_password();

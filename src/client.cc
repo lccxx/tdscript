@@ -53,6 +53,11 @@ namespace tdscript {
     load();
   }
 
+  void Client::send_request(td::td_api::object_ptr<td::td_api::Function> f) {
+    std::cout << "send " << (current_query_id + 1) << ": " << td::td_api::to_string(f) << std::endl;
+    client_manager->send(client_id, current_query_id++, std::move(f));
+  }
+
   void Client::send_parameters() {
     auto parameters = td::td_api::make_object<td::td_api::tdlibParameters>();
     parameters->database_directory_ = std::string(std::getenv("HOME")).append("/").append(".tdlib");
@@ -191,7 +196,7 @@ namespace tdscript {
       }
 
       auto update = std::move(response.object);
-      std::cout << response.request_id << " " << td::td_api::to_string(update) << std::endl;
+      std::cout << "receive " << response.request_id << ": " << td::td_api::to_string(update) << std::endl;
 
       if (td::td_api::updateAuthorizationState::ID == update->get_id()) {
         auto state_id = static_cast<td::td_api::updateAuthorizationState*>(update.get())->authorization_state_->get_id();
