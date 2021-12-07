@@ -9,7 +9,6 @@
 #include <chrono>
 #include <thread>
 #include <fstream>
-#include <stdexcept>
 
 #include <signal.h>
 
@@ -39,11 +38,11 @@ namespace tdscript {
   Client::Client() : Client(0) { }
 
   Client::Client(std::int32_t log_verbosity_level) {
-    if (std::getenv("HOME") == NULL) { throw std::invalid_argument("$HOME NULL"); }
-    if (std::getenv("TG_API_ID") == NULL) { throw std::invalid_argument("$TG_API_ID NULL"); }
-    if (std::getenv("TG_API_HASH") == NULL) { throw std::invalid_argument("$TG_API_HASH NULL"); }
-    if (std::getenv("TG_DB_ENCRYPTION_KEY") == NULL) { throw std::invalid_argument("$TG_DB_ENCRYPTION_KEY NULL"); }
-    if (std::getenv("TG_PHOME_NUMBER") == NULL) { throw std::invalid_argument("$TG_PHOME_NUMBER NULL"); }
+    check_environment("HOME");
+    check_environment("TG_API_ID");
+    check_environment("TG_API_HASH");
+    check_environment("TG_DB_ENCRYPTION_KEY");
+    check_environment("TG_PHOME_NUMBER");
 
     td::ClientManager::execute(td::td_api::make_object<td::td_api::setLogVerbosityLevel>(log_verbosity_level));
     client_manager = std::make_unique<td::ClientManager>();

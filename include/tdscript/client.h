@@ -9,7 +9,8 @@
 #include <td/telegram/td_api.h>
 #include <td/telegram/td_api.hpp>
 
-#include <array>
+#include <stdexcept>
+
 #include <assert.h>
 
 
@@ -50,6 +51,12 @@ namespace tdscript {
 
     void save();
     void load();
+
+    inline void check_environment(const char *name) {
+      if (std::getenv(name) == nullptr || std::string(std::getenv(name)).empty()) {
+        throw std::invalid_argument(std::string("$").append(name).append(" empty"));
+      }
+    }
   };  // class Client
 
 }  // namespace tdscript
