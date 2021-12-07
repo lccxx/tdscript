@@ -168,6 +168,7 @@ namespace tdscript {
           task_queue[tasks_counter][i](task_queue_args[tasks_counter][i]);
         }
         task_queue[tasks_counter].clear();
+        task_queue_args[tasks_counter].clear();
         tasks_counter += 1;
 
         for (const auto kv : player_count) {
