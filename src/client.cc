@@ -166,7 +166,9 @@ namespace tdscript {
           auto chat_id = kv.first;
           auto msg_id = kv.second;
           if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] > EXTEND_TIME / 2) {
-            get_message(chat_id, msg_id);
+            if (msg_id) {
+              get_message(chat_id, msg_id);
+            }
           }
         }
 
