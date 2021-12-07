@@ -22,7 +22,7 @@ namespace tdscript {
   const std::int32_t EXTEND_TIME = 123;
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ").append(std::to_string(EXTEND_TIME));
   const std::vector<std::string> AT_LIST = { "@JulienKM" };
-  const std::unordered_map<std::int64_t, std::int64_t> STICKS_STARTING = { { -1001098611371, 2736916529152 } };
+  const std::unordered_map<std::int64_t, std::int64_t> STICKS_STARTING = { { -681384622, 356104798208 } };
 
   std::unordered_map<std::int64_t, std::int32_t> player_count;
   std::unordered_map<std::int64_t, std::uint8_t> has_owner;
@@ -130,6 +130,8 @@ namespace tdscript {
     send_message->chat_id_ = chat_id;
     send_message->from_chat_id_ = from_chat_id;
     send_message->message_ids_ = { msg_id };
+    send_message->send_copy_ = true;
+    send_message->remove_caption_ = false;
     send_request(std::move(send_message));
   }
 
