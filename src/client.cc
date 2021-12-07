@@ -89,11 +89,20 @@ namespace tdscript {
     send_request(std::move(send_message));
   }
 
-  void Client::send_start(std::int64_t chat_id, std::int64_t bot_id, std::string link) {
+  void Client::send_start(std::int64_t bot_id, std::string link) {
+    std::regex param_regex("\\?start=(.*)");
+    std::smatch param_match;
+    std::string param;
+    if (std::regex_search(link, param_match, param_regex)) {
+      if (param_match.size() == 2) {
+        param = param_match[1];
+      }
+    }
+
     auto send_message = td::td_api::make_object<td::td_api::sendBotStartMessage>();
-    send_message->chat_id_ = chat_id;
+    send_message->chat_id_ = bot_id;
     send_message->bot_user_id_ = bot_id;
-    send_message->parameter_ = link;
+    send_message->parameter_ = param;
     send_request(std::move(send_message));
   }
 
@@ -196,41 +205,8 @@ namespace tdscript {
         }
       }
 
-      td::td_api::object_ptr<td::td_api::message> msg = nullptr;
-
-      if (td::td_api::messages::ID == update->get_id()) {  // from get_message
-        auto msgs = static_cast<td::td_api::messages*>(update.get())->messages_;
-        if (msgs.size() == 1) {
-          msg = std::move(msgs[0]);
-        }
-      }
-
       if (td::td_api::updateNewMessage::ID == update->get_id()) {
-        msg = std::move(static_cast<td::td_api::updateNewMessage*>(update.get())->message_);
-      }
-
-      if (msg && td::td_api::messageSenderUser::ID == msg->sender_->get_id()) {
-        auto chat_id = msg->chat_id_;
-        auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_.get())->user_id_;
-        std::string text = "";
-        std::string link = "";
-
-        if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
-          text = static_cast<td::td_api::messageText*>(msg->content_.get())->text_->text_;
-        }
-        if (msg->reply_markup_ && td::td_api::replyMarkupInlineKeyboard::ID == msg->reply_markup_->get_id()) {
-          auto rows = static_cast<td::td_api::replyMarkupInlineKeyboard*>(msg->reply_markup_.get())->rows_;
-          if (rows.size() == 1) {
-            auto row = rows[0];
-            if (row.size() == 1) {
-              if (row[0].get()->type_ && td::td_api::inlineKeyboardButtonTypeUrl::ID == row[0].get()->type_->get_id()) {
-                link = static_cast<td::td_api::inlineKeyboardButtonTypeUrl*>(row[0].get()->type_.get())->url_;
-              }
-            }
-          }
-        }
-
-        process_message(chat_id, msg->id_, user_id, text, link);
+        process_message(std::move(static_cast<td::td_api::updateNewMessage*>(update.get())->message_));
       }
 
       if (td::td_api::updateMessageContent::ID == update->get_id()) {
@@ -242,6 +218,37 @@ namespace tdscript {
           process_message(chat_id, msg_id, 0, text, "");
         }
       }
+
+      if (td::td_api::messages::ID == update->get_id()) {  // from get_message
+        auto msgs = std::move(static_cast<td::td_api::messages*>(update.get())->messages_);
+        for (int i = 0; i < msgs.size(); i++) {
+          process_message(std::move(msgs[i]));
+        }
+      }
+    }
+  }
+
+  void Client::process_message(td::td_api::object_ptr<td::td_api::message> msg) {
+    if (msg && td::td_api::messageSenderUser::ID == msg->sender_->get_id()) {
+      auto chat_id = msg->chat_id_;
+      auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_.get())->user_id_;
+      std::string text = "";
+      if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
+        text = static_cast<td::td_api::messageText*>(msg->content_.get())->text_->text_;
+      }
+      std::string link = "";
+      if (msg->reply_markup_ && td::td_api::replyMarkupInlineKeyboard::ID == msg->reply_markup_->get_id()) {
+        auto rows = std::move(static_cast<td::td_api::replyMarkupInlineKeyboard*>(msg->reply_markup_.get())->rows_);
+        if (rows.size() == 1) {
+          if (rows[0].size() == 1) {
+            if (rows[0][0].get()->type_ && td::td_api::inlineKeyboardButtonTypeUrl::ID == rows[0][0].get()->type_->get_id()) {
+              link = static_cast<td::td_api::inlineKeyboardButtonTypeUrl*>(rows[0][0].get()->type_.get())->url_;
+            }
+          }
+        }
+      }
+
+      process_message(chat_id, msg->id_, user_id, text, link);
     }
   }
 
@@ -290,7 +297,7 @@ namespace tdscript {
     }
 
     if (!has_owner[chat_id] && user_id && !link.empty()) {
-      send_start(chat_id, user_id, link);
+      send_start(user_id, link);
     }
 
     const std::regex cancel_regex("游戏取消|目前没有进行中的游戏|游戏启动中");
