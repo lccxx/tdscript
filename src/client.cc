@@ -30,8 +30,10 @@ namespace tdscript {
   std::unordered_map<std::int64_t, std::vector<std::int64_t>> pending_extend_mesages;
   std::unordered_map<std::int64_t, std::uint64_t> last_extent_at;
   std::unordered_map<std::int64_t, std::int64_t> players_message;
+  std::unordered_map<std::int64_t, std::uint8_t> need_extend;
 
-  std::unordered_map<std::uint64_t, std::vector<std::function<void()>>> task_queue;
+  std::unordered_map<std::uint64_t, std::vector<std::function<void(std::vector<std::string>)>>> task_queue;
+  std::unordered_map<std::uint64_t, std::vector<std::vector<std::string>>> task_queue_args;
   std::uint64_t tasks_counter = 0;
 
   bool save_flag = false;
@@ -97,7 +99,9 @@ namespace tdscript {
     send_request(std::move(send_message));
   }
 
-  void Client::send_start(std::int64_t bot_id, std::string link) {
+  void Client::send_start(std::int64_t chat_id, std::int64_t bot_id, std::string link) {
+    if (has_owner[chat_id]) { return; }
+    if (!need_extend[chat_id]) { return; }
     std::regex param_regex("\\?start=(.*)");
     std::smatch param_match;
     std::string param;
@@ -112,9 +116,15 @@ namespace tdscript {
     send_message->bot_user_id_ = bot_id;
     send_message->parameter_ = param;
     send_request(std::move(send_message));
+
+    task_queue_args[tasks_counter + 1].push_back({ std::to_string(chat_id), std::to_string(bot_id), link });
+    task_queue[tasks_counter + 1].push_back([this](std::vector<std::string> args) {
+      send_start(std::stoll(args[0]), std::stoll(args[1]), args[2]);
+    });
   }
 
   void Client::send_extend(std::int64_t chat_id) {
+    if (!need_extend[chat_id]) { return; }
     if (!has_owner[chat_id]) { return; }
     if (player_count[chat_id] >= 5) { return; }
     if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] < 3) { return; }
@@ -153,8 +163,8 @@ namespace tdscript {
           save();
         }
 
-        for (const auto task : task_queue[tasks_counter]) {
-          task();
+        for (int i = 0; i < task_queue[tasks_counter].size(); i++) {
+          task_queue[tasks_counter][i](task_queue_args[tasks_counter][i]);
         }
         task_queue[tasks_counter].clear();
         tasks_counter += 1;
@@ -301,10 +311,8 @@ namespace tdscript {
         player_count[chat_id] = std::stoi(players_match[1]);
 
         if (user_id) {
-          if (players_message[chat_id] != msg_id) {  // starting
+          if (players_message[chat_id] != msg_id) {
             last_extent_at[chat_id] = std::time(nullptr);
-
-            for (const auto at : AT_LIST) { send_text(chat_id, at); }
           }
           players_message[chat_id] = msg_id;
         }
@@ -319,8 +327,9 @@ namespace tdscript {
       }
     }
 
-    if (!has_owner[chat_id] && user_id && !link.empty()) {
-      send_start(user_id, link);
+    if (user_id && !link.empty()) {
+      need_extend[chat_id] = 1;
+      send_start(chat_id, user_id, link);
     }
 
     const std::regex remain_regex("还有 1 分钟|还剩 \\d+ 秒");
@@ -338,12 +347,13 @@ namespace tdscript {
       pending_extend_mesages[chat_id].clear();
     }
 
-    const std::regex cancel_regex("游戏取消|目前没有进行中的游戏|游戏启动中");
+    const std::regex cancel_regex("游戏取消|目前没有进行中的游戏|游戏启动中|夜幕降临|第\\d+天");
     std::smatch cancel_match;
     if (std::regex_search(text, cancel_match, cancel_regex)) {
       has_owner[chat_id] = 0;
       pending_extend_mesages[chat_id].clear();
       last_extent_at[chat_id] = 0;
+      need_extend[chat_id] = 0;
     }
   }
 
@@ -379,6 +389,7 @@ namespace tdscript {
     ofs << ma2s(pending_extend_mesages) << '\n';
     ofs << m2s(last_extent_at) << '\n';
     ofs << m2s(players_message) << '\n';
+    ofs << m2s(need_extend) << '\n';
 
     ofs.close();
 
@@ -422,6 +433,9 @@ namespace tdscript {
           }
           if (1 == 4) {
             players_message[std::stoll(key)] = std::stoll(value);
+          }
+          if (i == 5) {
+            need_extend[std::stoll(key)] = std::stoi(value);
           }
         }
         line = comma_match.suffix();
