@@ -22,6 +22,7 @@ namespace tdscript {
   const std::int32_t EXTEND_TIME = 123;
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ").append(std::to_string(EXTEND_TIME));
   const std::vector<std::string> AT_LIST = { "@JulienKM" };
+  const std::unordered_map<std::int64_t, std::int64_t> STICKS_STARTING = { { -1001098611371, 2736916529152 } };
 
   std::unordered_map<std::int64_t, std::int32_t> player_count;
   std::unordered_map<std::int64_t, std::uint8_t> has_owner;
@@ -122,6 +123,14 @@ namespace tdscript {
   void Client::get_message(std::int64_t chat_id, std::int64_t msg_id) {
     std::vector<std::int64_t> message_ids = { msg_id };
     send_request(td::td_api::make_object<td::td_api::getMessages>(chat_id, std::move(message_ids)));
+  }
+
+  void Client::forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id) {
+    auto send_message = td::td_api::make_object<td::td_api::forwardMessages>();
+    send_message->chat_id_ = chat_id;
+    send_message->from_chat_id_ = from_chat_id;
+    send_message->message_ids_ = { msg_id };
+    send_request(std::move(send_message));
   }
 
   void Client::loop() {
@@ -268,6 +277,7 @@ namespace tdscript {
     std::smatch starting_match;
     if (std::regex_search(text, starting_match, starting_regex)) {
       for (const auto at : AT_LIST) { send_text(chat_id, at); }
+      for (const auto kv : STICKS_STARTING) { forward_message(chat_id, kv.first, kv.second); }
     }
 
     save_flag = true;

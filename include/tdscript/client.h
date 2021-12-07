@@ -42,6 +42,7 @@ namespace tdscript {
     void send_extend(std::int64_t chat_id);
     void delete_messages(std::int64_t chat_id, std::vector<std::int64_t> message_ids);
     void get_message(std::int64_t chat_id, std::int64_t msg_id);
+    void forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id);
 
     void loop();
 
