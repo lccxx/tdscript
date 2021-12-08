@@ -41,4 +41,5 @@ if (WITH_TESTS)
 
     add_gtest(test/client_test.cc)
     add_gtest(test/client_tdjson_test.cc)
+    add_gtest(test/save_load_test.cc)
 endif (WITH_TESTS)

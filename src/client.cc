@@ -3,7 +3,6 @@
 #include "tdscript/client.h"
 
 #include <iostream>
-#include <unordered_map>
 #include <regex>
 #include <ctime>
 #include <chrono>
@@ -25,6 +24,8 @@ namespace tdscript {
   const std::vector<std::string> AT_LIST = { "@JulienKM" };
   const std::unordered_map<std::int64_t, std::int64_t> STICKS_STARTING = { { -681384622, 356104798208 } };
 
+  const auto SAVE_FILENAME = std::string(std::getenv("HOME")).append("/").append(".tdscript.save");
+  bool save_flag = false;
   bool data_ready = false;
   std::unordered_map<std::int64_t, std::int32_t> player_count;
   std::unordered_map<std::int64_t, std::uint8_t> has_owner;
@@ -36,9 +37,6 @@ namespace tdscript {
   std::unordered_map<std::uint64_t, std::vector<std::function<void(std::vector<std::string>)>>> task_queue;
   std::unordered_map<std::uint64_t, std::vector<std::vector<std::string>>> task_queue_args;
   std::uint64_t tasks_counter = 0;
-
-  bool save_flag = false;
-  const auto SAVE_FILENAME = std::string(std::getenv("HOME")).append("/").append(".tdscript.save");
 
 
   Client::Client() : Client(0) { }
@@ -385,7 +383,7 @@ namespace tdscript {
     return line;
   }
 
-  void Client::save() {
+  void save() {
     if (!data_ready) { return; }
     if (!save_flag) { return; }
     save_flag = false;
@@ -403,7 +401,7 @@ namespace tdscript {
     ofs.close();
   }
 
-  void Client::load() {
+  void load() {
     std::ifstream file(SAVE_FILENAME);
     if (!file.good()) {
       data_ready = true;

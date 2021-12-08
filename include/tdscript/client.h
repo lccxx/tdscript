@@ -10,6 +10,7 @@
 #include <td/telegram/td_api.hpp>
 
 #include <stdexcept>
+#include <unordered_map>
 
 #include <assert.h>
 
@@ -18,8 +19,17 @@ namespace tdscript {
   extern const std::string VERSION;
 
   extern bool stop;
-
   void quit(int signum);
+
+  extern bool save_flag;
+  extern bool data_ready;
+  extern std::unordered_map<std::int64_t, std::int32_t> player_count;
+  extern std::unordered_map<std::int64_t, std::uint8_t> has_owner;
+  extern std::unordered_map<std::int64_t, std::vector<std::int64_t>> pending_extend_mesages;
+  extern std::unordered_map<std::int64_t, std::uint64_t> last_extent_at;
+  extern std::unordered_map<std::int64_t, std::int64_t> players_message;
+  extern std::unordered_map<std::int64_t, std::uint8_t> need_extend;
+
 
   class Client {
   public:
@@ -31,7 +41,7 @@ namespace tdscript {
     Client();
     Client(std::int32_t log_verbosity_level);
 
-    inline void send_request(td::td_api::object_ptr<td::td_api::Function> f);
+    void send_request(td::td_api::object_ptr<td::td_api::Function> f);
     void send_parameters();
     void send_code();
     void send_password();
@@ -48,9 +58,6 @@ namespace tdscript {
     void process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, std::string text, std::string link);
     void process_werewolf(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, std::string text, std::string link);
 
-    void save();
-    void load();
-
     inline void check_environment(const char *name) {
       if (std::getenv(name) == nullptr || std::string(std::getenv(name)).empty()) {
         throw std::invalid_argument(std::string("$").append(name).append(" empty"));
@@ -58,6 +65,8 @@ namespace tdscript {
     }
   };  // class Client
 
+  void save();
+  void load();
 }  // namespace tdscript
 
 #endif  // INCLUDE_TDSCRIPT_CLIENT_H_
