@@ -4,30 +4,40 @@
 
 #include "gtest/gtest.h"
 
+void get_message(std::int64_t msg_id) {
+    std::vector<std::int64_t> message_ids = { msg_id };
+    auto ids = std::move(message_ids);
+  }
 
 TEST(RandomTest, Create) {
   EXPECT_EQ(1, 1) << "1 == 1";
   EXPECT_EQ("0.1", tdscript::VERSION) << "version";
 
+  EXPECT_EQ(0, tdscript::players_message.size());
+  EXPECT_EQ(0, tdscript::players_message[-1001098611371]);
+  EXPECT_EQ(1, tdscript::players_message.size());
+  EXPECT_EQ(0, tdscript::players_message[-1001031483587]);
+  EXPECT_EQ(2, tdscript::players_message.size());
+
   EXPECT_EQ(false, tdscript::data_ready);
-  EXPECT_EQ(0, tdscript::players_message[-1001098611371]);
   EXPECT_EQ(false, tdscript::save_flag);
 
-  tdscript::load();
 
-  EXPECT_EQ(true, tdscript::data_ready);
-  EXPECT_EQ(false, tdscript::save_flag);
-
-  tdscript::save_flag = true;
+  tdscript::pending_extend_mesages[-1001098611371].push_back(2739791724545);
+  tdscript::pending_extend_mesages[-1001098611371].push_back(2737428234241);
+  tdscript::pending_extend_mesages[-1001098611371].push_back(2737438720001);
   tdscript::players_message[-1001098611371] = 2739049332736;
-  tdscript::save();
-  tdscript::load();
-  EXPECT_EQ(2739049332736, tdscript::players_message[-1001098611371]);
-
+  tdscript::players_message[-1001030076721] = 854676471808;
+  tdscript::data_ready = true;
   tdscript::save_flag = true;
-  tdscript::players_message[-1001098611371] = 0;
   tdscript::save();
-  tdscript::load();
-  EXPECT_EQ(0, tdscript::players_message[-1001098611371]);
 
+  tdscript::pending_extend_mesages[-1001098611371].clear();
+  tdscript::players_message.clear();
+
+  tdscript::load();
+  EXPECT_EQ(2737428234241, tdscript::pending_extend_mesages[-1001098611371][1]);
+  EXPECT_EQ(2737438720001, tdscript::pending_extend_mesages[-1001098611371][2]);
+  EXPECT_EQ(2739049332736, tdscript::players_message[-1001098611371]);
+  EXPECT_EQ(854676471808, tdscript::players_message[-1001030076721]);
 }

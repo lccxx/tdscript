@@ -47,6 +47,7 @@ namespace tdscript {
     void send_password();
     void send_text(std::int64_t chat_id, std::string text);
     void send_start(std::int64_t chat_id, std::int64_t bot_id, std::string link);
+    void send_start(std::int64_t chat_id, std::int64_t bot_id, std::string link, int limit);
     void send_extend(std::int64_t chat_id);
     void delete_messages(std::int64_t chat_id, std::vector<std::int64_t> message_ids);
     void get_message(std::int64_t chat_id, std::int64_t msg_id);
@@ -65,6 +66,8 @@ namespace tdscript {
     }
   };  // class Client
 
+  template <typename Tk, typename Tv> std::string m2s(std::unordered_map<Tk, Tv> map);
+  template <typename Tk, class Tv> std::string ma2s(std::unordered_map<Tk, Tv> map);
   void save();
   void load();
 }  // namespace tdscript

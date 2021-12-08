@@ -34,8 +34,7 @@ namespace tdscript {
   std::unordered_map<std::int64_t, std::int64_t> players_message;
   std::unordered_map<std::int64_t, std::uint8_t> need_extend;
 
-  std::unordered_map<std::uint64_t, std::vector<std::function<void(std::vector<std::string>)>>> task_queue;
-  std::unordered_map<std::uint64_t, std::vector<std::vector<std::string>>> task_queue_args;
+  std::unordered_map<std::uint64_t, std::vector<std::function<void()>>> task_queue;
   std::uint64_t tasks_counter = 0;
 
 
@@ -99,8 +98,13 @@ namespace tdscript {
   }
 
   void Client::send_start(std::int64_t chat_id, std::int64_t bot_id, std::string link) {
+    send_start(chat_id, bot_id, link, 9);
+  }
+
+  void Client::send_start(std::int64_t chat_id, std::int64_t bot_id, std::string link, int limit) {
     if (has_owner[chat_id]) { return; }
     if (!need_extend[chat_id]) { return; }
+    if (limit <= 0) { return ; }
     std::regex param_regex("\\?start=(.*)");
     std::smatch param_match;
     std::string param;
@@ -116,10 +120,9 @@ namespace tdscript {
     send_message->parameter_ = param;
     send_request(std::move(send_message));
 
-    // add to task queue, resend after 3 seconds
-    task_queue_args[tasks_counter + 3].push_back({ std::to_string(chat_id), std::to_string(bot_id), link });
-    task_queue[tasks_counter + 3].push_back([this](std::vector<std::string> args) {
-      send_start(std::stoll(args[0]), std::stoll(args[1]), args[2]);
+    // add to the task queue, resend after 3 seconds, limit 9(default)
+    task_queue[tasks_counter + 3].push_back([this, chat_id, bot_id, link, limit]() {
+      send_start(chat_id, bot_id, link, limit - 1);
     });
   }
 
@@ -127,6 +130,7 @@ namespace tdscript {
     if (!need_extend[chat_id]) { return; }
     if (!has_owner[chat_id]) { return; }
     if (player_count[chat_id] >= 5) { return; }
+    if (pending_extend_mesages[chat_id].size() > 30) { return; }
     if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] < 3) { return; }
     last_extent_at[chat_id] = std::time(nullptr);
     send_text(chat_id, EXTEND_TEXT);
@@ -159,12 +163,11 @@ namespace tdscript {
 
     std::thread([this] {  // tasks loop thread
       while(!stop) {
-        // take out the current tasks & args, and process
-        for (int i = 0; i < task_queue[tasks_counter].size(); i++) {
-          task_queue[tasks_counter][i](task_queue_args[tasks_counter][i]);
+        // take out the current tasks and process
+        for (const auto task : task_queue[tasks_counter]) {
+          task();
         }
         task_queue[tasks_counter].clear();
-        task_queue_args[tasks_counter].clear();
         tasks_counter += 1;
 
         // confirm the extend
@@ -182,10 +185,9 @@ namespace tdscript {
         for (const auto kv : players_message) {
           auto chat_id = kv.first;
           auto msg_id = kv.second;
-          if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] > EXTEND_TIME / 2) {
-            if (msg_id) {
-              get_message(chat_id, msg_id);
-            }
+          if (msg_id && last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] > EXTEND_TIME / 2
+                && std::time(nullptr) % 7 == 0) {
+            get_message(chat_id, msg_id);
           }
         }
 
@@ -408,43 +410,41 @@ namespace tdscript {
       return ;
     }
 
-    std::regex comma_regex("([^,]*),");
-    std::regex colon_regex("([^:]*):");
+    std::regex kv_regex("([^:]*):([^,]*),");
     std::regex stick_regex("([^|]*)\\|");
     std::string line = "";
     for (std::int32_t i = 0; std::getline(file, line); i++) {
-      std::smatch comma_match;
-      while (std::regex_search(line, comma_match, comma_regex)) {
-        std::string word = comma_match[1];
-        std::smatch colon_match;
-        if (std::regex_search(word, colon_match, colon_regex)) {
-          std::string key = colon_match[1];
-          std::string value = colon_match.suffix();
-          if (i == 0) {
-            player_count[std::stoll(key)] = std::stoi(value);
-          }
-          if (i == 1) {
-            has_owner[std::stoll(key)] = std::stoi(value);
-          }
-          if (i == 2) {
-            std::smatch stick_match;
-            while (std::regex_search(value, stick_match, stick_regex)) {
-              std::string a = stick_match[1];
-              pending_extend_mesages[std::stoll(key)].push_back(std::stoll(a));
-              value = stick_match.suffix();
-            }
-          }
-          if (1 == 3) {
-            last_extent_at[std::stoll(key)] = std::stoull(value);
-          }
-          if (1 == 4) {
-            players_message[std::stoll(key)] = std::stoll(value);
-          }
-          if (i == 5) {
-            need_extend[std::stoll(key)] = std::stoi(value);
+      std::cout << "load " << i << ": " << line << '\n';
+      std::smatch kv_match;
+      while (std::regex_search(line, kv_match, kv_regex)) {
+        std::string key = kv_match[1];
+        std::string value = kv_match[2];
+        std::cout << "  key: " << key << ", value: " << value << '\n';
+        if (i == 0) {
+          player_count[std::stoll(key)] = std::stoi(value);
+        }
+        if (i == 1) {
+          has_owner[std::stoll(key)] = std::stoi(value);
+        }
+        if (i == 2) {
+          std::smatch stick_match;
+          while (std::regex_search(value, stick_match, stick_regex)) {
+            std::string a = stick_match[1];
+            std::cout << "    " << a << '\n';
+            pending_extend_mesages[std::stoll(key)].push_back(std::stoll(a));
+            value = stick_match.suffix();
           }
         }
-        line = comma_match.suffix();
+        if (i == 3) {
+          last_extent_at[std::stoll(key)] = std::stoull(value);
+        }
+        if (i == 4) {
+          players_message[std::stoll(key)] = std::stoll(value);
+        }
+        if (i == 5) {
+          need_extend[std::stoll(key)] = std::stoi(value);
+        }
+        line = kv_match.suffix();
       }
     }
     data_ready = true;
