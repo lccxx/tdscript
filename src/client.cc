@@ -165,8 +165,8 @@ namespace tdscript {
         for (const auto task : task_queue[tasks_counter]) {
           task();
         }
-        task_queue[tasks_counter].clear();
         tasks_counter += 1;
+        task_queue[tasks_counter - 1].clear();
 
         // confirm the extend
         for (const auto kv : player_count) {
