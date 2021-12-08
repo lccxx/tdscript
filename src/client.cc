@@ -159,8 +159,6 @@ namespace tdscript {
     signal(SIGINT, quit);
     signal(SIGTERM, quit);
 
-    std::function<void()> f = [this]() {};
-
     std::thread([this] {  // tasks loop thread
       while(!stop) {
         // take out the current tasks and process
