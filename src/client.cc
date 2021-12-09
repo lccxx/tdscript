@@ -463,7 +463,7 @@ namespace tdscript {
               std::string title = data["query"]["random"][0]["title"];
               std::cout << "wiki random title: " << title << '\n';
               std::stringstream ss;
-              ss << "<a hfre='https://" << host << "/wiki/" << title << "'>" << title << "</a>";
+              ss << "<a href='https://" << host << "/wiki/" << title << "'>" << title << "</a>";
               send_text(chat_id, msg_id, ss.str());
             }
           } catch (nlohmann::json::parse_error &ex) {
