@@ -109,10 +109,10 @@ namespace tdscript {
     auto send_message = td::td_api::make_object<td::td_api::sendMessage>();
     send_message->chat_id_ = chat_id;
     send_message->reply_to_message_id_ = reply_id;
-    send_message->reply_to_message_id_ = no_link_preview;
     auto message_content = td::td_api::make_object<td::td_api::inputMessageText>();
     message_content->text_ = td::td_api::make_object<td::td_api::formattedText>();
     message_content->text_->text_ = std::move(text);
+    message_content->disable_web_page_preview_ = no_link_preview;
     send_message->input_message_content_ = std::move(message_content);
     send_request(std::move(send_message));
   }
