@@ -508,6 +508,7 @@ namespace tdscript {
     int sockfd = event.data.fd;
     SSL *ssl = ssls[sockfd];
 
+    std::regex length_regex("Content-Length: (\\d+)", std::regex_constants::icase);
     std::string res;
     char buffer[HTTP_BUFFER_SIZE];
     int response_size;
@@ -517,6 +518,17 @@ namespace tdscript {
         break;
       }
       res.append(std::string(buffer, 0, response_size));
+      std::string body = res.substr(res.find("\r\n\r\n") + 4);
+      std::smatch length_match;
+      std::uint16_t content_length;
+      if (std::regex_search(res, length_match, length_regex)) {
+        if (length_match.size() == 2) {
+          content_length = std::stoull(length_match[1]);
+        }
+      }
+      if (content_length && content_length > body.length()) {
+        continue;
+      }
       if (response_size < HTTP_BUFFER_SIZE) {
         break;
       }

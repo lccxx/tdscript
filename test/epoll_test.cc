@@ -4,6 +4,8 @@
 
 #include "gtest/gtest.h"
 
+#include <regex>
+
 
 TEST(RandomTest, Create) {
   EXPECT_EQ(1, 1) << "1 == 1";
@@ -46,8 +48,17 @@ TEST(RandomTest, Create) {
           if (res.find("random") != std::string::npos) {
             tdscript::player_count[5] = 1;
           }
+          std::regex length_regex("Content-Length: (\\d+)", std::regex_constants::icase);
+          std::smatch length_match;
+          std::uint16_t content_length;
+          if (std::regex_search(res, length_match, length_regex)) {
+            if (length_match.size() == 2) {
+              content_length = std::stoull(length_match[1]);
+            }
+          }
 
-          std::string body = res.substr(res.find("\r\n\r\n"));
+          std::string body = res.substr(res.find("\r\n\r\n") + 4);
+          std::cout << "body(" << content_length << " -> " << body.length() << "): " << body << '\n';
           try {
             auto data = nlohmann::json::parse(body);
             if (data.contains("query") && data["query"].contains("random") && data["query"]["random"].size() > 0) {
