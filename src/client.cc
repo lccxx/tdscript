@@ -139,7 +139,7 @@ namespace tdscript {
     if (!has_owner[chat_id]) { return; }
     if (player_count[chat_id] >= 5) { return; }
     if (pending_extend_mesages[chat_id].size() > 30) { return; }
-    if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] < 3) { return; }
+    if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] < 5) { return; }
     last_extent_at[chat_id] = std::time(nullptr);
     send_text(chat_id, EXTEND_TEXT);
   }
@@ -167,16 +167,14 @@ namespace tdscript {
     signal(SIGINT, quit);
     signal(SIGTERM, quit);
 
-    std::function<void()> f = [this]() {};
-
     std::thread([this] {  // tasks loop thread
       while(!stop) {
         // take out the current tasks and process
         for (const auto task : task_queue[tasks_counter]) {
           task();
         }
-        task_queue[tasks_counter].clear();
         tasks_counter += 1;
+        task_queue[tasks_counter - 1].clear();
 
         // confirm the extend
         for (const auto kv : player_count) {
