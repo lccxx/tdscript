@@ -9,6 +9,10 @@
 #include <thread>
 #include <fstream>
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/epoll.h>
 #include <signal.h>
 
 
@@ -23,6 +27,10 @@ namespace tdscript {
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ").append(std::to_string(EXTEND_TIME));
   const std::vector<std::string> AT_LIST = { "@JulienKM" };
   const std::unordered_map<std::int64_t, std::int64_t> STICKS_STARTING = { { -681384622, 356104798208 } };
+
+  constexpr int MAX_EVENTS = 1;
+  constexpr int SOCKET_TIME_OUT_MS = 5000;
+  constexpr size_t HTTP_BUFFER_SIZE = 8192;
 
   const auto SAVE_FILENAME = std::string(std::getenv("HOME")).append("/").append(".tdscript.save");
   bool save_flag = false;
@@ -360,6 +368,88 @@ namespace tdscript {
       last_extent_at[chat_id] = 0;
       need_extend[chat_id] = 0;
     }
+  }
+
+
+  int init_sockaddr_in_ipv4(const char *host, int port, struct sockaddr_in *dest) {
+    bzero(dest, sizeof(*dest));
+    dest->sin_family = AF_INET;
+    dest->sin_port = htons(port);
+    if (host == nullptr) {
+      dest->sin_addr.s_addr = INADDR_ANY;
+    } else if (inet_pton(AF_INET, host, &((*dest).sin_addr.s_addr)) == 0) {
+      perror(host);
+      return -1;
+    }
+    return 200;
+  }
+
+  std::string http_request(std::string host, int port, std::string method, std::string path) {
+    int epollfd;
+    if ((epollfd = epoll_create1(0)) == -1) {
+      perror("epoll_create1");
+      return "";
+    }
+
+    int sockfd;
+    if ((sockfd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0) {
+      perror("socket");
+      return "";
+    }
+
+    struct epoll_event event = {};
+    event.events = EPOLLIN;
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &event) == -1) {
+      perror("epoll_ctl: ");
+      return "";
+    }
+
+    struct sockaddr_in dest = { };
+    if (init_sockaddr_in_ipv4(host.c_str(), port, &dest) != 200) {
+      return "";
+    }
+
+    if (connect(sockfd, (struct sockaddr *) &dest, sizeof(dest)) != 0) {
+      if (errno != EINPROGRESS) {
+        perror(std::string("Connect ").append(host).append(":").append(std::to_string(port)).c_str());
+        return "";
+      }
+    }
+
+    std::string req = method.append(" ").append(path);
+    req.append(" HTTP/1.1\r\nHost: ").append(host);
+    if (port != 80 || port != 443) {
+      req.append(":").append(std::to_string(port));
+    }
+    req.append("\r\n");
+    req.append("\r\n");
+
+    std::cout << "HTTP request: " << req << '\n';
+
+    if (send(sockfd, req.c_str(), req.size(), MSG_DONTWAIT) == -1) {
+      perror("send");
+      return "";
+    }
+
+    struct epoll_event events[MAX_EVENTS];
+    if (epoll_wait(epollfd, events, MAX_EVENTS, SOCKET_TIME_OUT_MS) < 1) {
+      perror("epoll_wait");
+      return "";
+    }
+
+    std::string res;
+    char buffer[HTTP_BUFFER_SIZE];
+    size_t response_size;
+    do {
+      if ((response_size = recv(sockfd, buffer, HTTP_BUFFER_SIZE, MSG_DONTWAIT)) == -1) {
+        perror("recv");
+        return res;
+      }
+      res.append(std::string(buffer, 0, response_size));
+      if (response_size < HTTP_BUFFER_SIZE) {
+        return res;
+      }
+    } while(true);
   }
 
   template <typename Tk, typename Tv>
