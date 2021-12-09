@@ -97,8 +97,13 @@ namespace tdscript {
   }
 
   void Client::send_text(std::int64_t chat_id, std::string text) {
+    send_text(chat_id, 0, text);
+  }
+
+  void Client::send_text(std::int64_t chat_id, std::int64_t reply_id, std::string text) {
     auto send_message = td::td_api::make_object<td::td_api::sendMessage>();
     send_message->chat_id_ = chat_id;
+    send_message->reply_to_message_id_ = reply_id;
     auto message_content = td::td_api::make_object<td::td_api::inputMessageText>();
     message_content->text_ = td::td_api::make_object<td::td_api::formattedText>();
     message_content->text_->text_ = std::move(text);
@@ -355,6 +360,8 @@ namespace tdscript {
       process_werewolf(chat_id, msg_id, user_id, text, link);
     }
 
+    process_wiki(chat_id, msg_id, text);
+
     if (text == EXTEND_TEXT) {
       pending_extend_mesages[chat_id].push_back(msg_id);
     }
@@ -422,6 +429,46 @@ namespace tdscript {
       last_extent_at[chat_id] = 0;
       players_message[chat_id] = 0;
       need_extend[chat_id] = 0;
+    }
+  }
+
+  void Client::process_wiki(std::int64_t chat_id, std::int64_t msg_id, std::string text) {
+    std::regex lang_regex("^\\/(.{0,2})wiki");
+    std::regex title_regex("wiki(.*)$");
+    std::smatch lang_match;
+    std::smatch title_match;
+    std::string lang = "en";
+    std::string title;
+    if (std::regex_search(text, lang_match, lang_regex)
+          && std::regex_search(text, title_match, title_regex)) {
+      if (lang_match.size() == 2) {
+        lang = lang_match[1];
+      }
+      if (title_match.size() == 2) {
+        title = title_match[1];
+      }
+    } else {
+      return;
+    }
+    std::string host = lang.append("wikipedia.org");
+    if (title.empty()) {
+      send_https_request(host, "/w/api.php?action=query&format=json&list=random&rnnamespace=0", [this, host, chat_id, msg_id](std::string res) {
+          std::string body = res.substr(res.find("\r\n\r\n"));
+          try {
+            auto data = nlohmann::json::parse(body);
+            if (data.contains("query") && data["query"].contains("random") && data["query"]["random"].size() > 0) {
+              std::string title = data["query"]["random"][0]["title"];
+              std::cout << "wiki random title: " << title << '\n';
+              std::stringstream ss;
+              ss << "<a hfre='https://" << host << "/wiki/" << title << "'>" << title << "</a>";
+              send_text(chat_id, msg_id, ss.str());
+            }
+          } catch (nlohmann::json::parse_error &ex) {
+            
+          }
+      });
+    } else {
+      send_text(chat_id, msg_id, "waiting for HTML parse ...");
     }
   }
 

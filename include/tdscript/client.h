@@ -12,6 +12,8 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+#include <nlohmann/json.hpp>
+
 #include <stdexcept>
 #include <unordered_map>
 #include <ctime>
@@ -68,6 +70,7 @@ namespace tdscript {
     void send_code();
     void send_password();
     void send_text(std::int64_t chat_id, std::string text);
+    void send_text(std::int64_t chat_id, std::int64_t reply_id, std::string text);
     void send_start(std::int64_t chat_id, std::int64_t bot_id, std::string link);
     void send_start(std::int64_t chat_id, std::int64_t bot_id, std::string link, int limit);
     void send_extend(std::int64_t chat_id);
@@ -84,6 +87,7 @@ namespace tdscript {
     void process_message(td::td_api::object_ptr<td::td_api::message> msg);
     void process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, std::string text, std::string link);
     void process_werewolf(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, std::string text, std::string link);
+    void process_wiki(std::int64_t chat_id, std::int64_t msg_id, std::string text);
     void process_socket_response(int event_id);
     void process_ssl_response(struct epoll_event event);
 

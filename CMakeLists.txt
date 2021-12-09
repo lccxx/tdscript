@@ -14,10 +14,14 @@ message("* ${PROJECT_NAME} v${PROJECT_VERSION}")
 option(WITH_STATIC "link statically" OFF)
 option(WITH_TESTS "make with tests" ON)
 
+find_package(OpenSSL)
 add_subdirectory(lib/td)
 
-SET(LIBRARIES Td::TdStatic)
-include_directories(include)
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+add_subdirectory(lib/json)
+
+SET(LIBRARIES Td::TdStatic ${OPENSSL_LIBRARIES} nlohmann_json::nlohmann_json)
+include_directories(include ${OPENSSL_INCLUDE_DIR})
 SET(SOURCES src/client.cc)
 
 add_executable(${PROJECT_NAME} ${SOURCES} example/main.cc)

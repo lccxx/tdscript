@@ -46,6 +46,16 @@ TEST(RandomTest, Create) {
           if (res.find("random") != std::string::npos) {
             tdscript::player_count[5] = 1;
           }
+
+          std::string body = res.substr(res.find("\r\n\r\n"));
+          try {
+            auto data = nlohmann::json::parse(body);
+            if (data.contains("query") && data["query"].contains("random") && data["query"]["random"].size() > 0) {
+              std::cout << "random title: " << data["query"]["random"][0]["title"] << '\n';
+            }
+          } catch (nlohmann::json::parse_error &ex) {
+            
+          }
       });
 
   EXPECT_FALSE(tdscript::player_count[0]);
