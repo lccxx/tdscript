@@ -468,7 +468,7 @@ namespace tdscript {
           } catch (nlohmann::json::parse_error &ex) { }
       });
     } else {
-      process_wiki(chat_id, msg_id, lang, title);
+      process_wiki(chat_id, msg_id, lang, title.erase(0, title.find_first_not_of(' ')));
     }
   }
 
