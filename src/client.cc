@@ -373,13 +373,14 @@ namespace tdscript {
 
   void Client::process_socket_response(int event_id) {
     if (event_id < 1) { return; }
-    auto event = events[0];
+    struct epoll_event event = events[0];
+    int sockfd = event.data.fd;
 
     std::string res;
     char buffer[HTTP_BUFFER_SIZE];
     size_t response_size;
     do {
-      if ((response_size = recv(event.data.fd, buffer, HTTP_BUFFER_SIZE, MSG_DONTWAIT)) == -1) {
+      if ((response_size = recv(sockfd, buffer, HTTP_BUFFER_SIZE, MSG_DONTWAIT)) == -1) {
         perror("recv");
         break;
       }
@@ -389,10 +390,11 @@ namespace tdscript {
       }
     } while(true);
 
-    std::cout << "socket(" << event.data.fd << ") response: " << res << '\n';
-    request_callbacks[event.data.fd](res);
-    request_callbacks.erase(event.data.fd);
-    close(event.data.fd);
+    std::cout << "socket(" << sockfd << ") response: " << res << '\n';
+    request_callbacks[sockfd](res);
+    request_callbacks.erase(sockfd);
+    epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, &event);
+    close(sockfd);
   }
 
 
