@@ -475,10 +475,9 @@ namespace tdscript {
   void Client::process_wiki(std::int64_t chat_id, std::int64_t msg_id, std::string lang, std::string title) {
     std::string host = lang.append(".wikipedia.org");
     std::stringstream ss;
-    ss << title << '\n';
     // TODO: parse html https://github.com/lccxz/tg-script/blob/master/tg.rb#L278
-
-    ss << "\nhttps://" << host << "/wiki/" << urlencode(std::regex_replace(title, std::regex(" "), "_"));
+    ss << title << '\n';
+    ss << "https://" << host << "/wiki/" << urlencode(std::regex_replace(title, std::regex(" "), "_"));
     send_text(chat_id, ss.str());
   }
 
