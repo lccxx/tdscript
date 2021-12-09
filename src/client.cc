@@ -453,7 +453,7 @@ namespace tdscript {
     if (lang.empty()) {
       lang = "en";
     }
-    std::string host = lang.append(".wikipedia.org");
+    std::string host = lang + ".wikipedia.org";
     if (title.empty()) {
       send_https_request(host, "/w/api.php?action=query&format=json&list=random&rnnamespace=0",
       [this, host, lang, chat_id, msg_id](std::string res) {
