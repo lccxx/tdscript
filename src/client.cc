@@ -479,7 +479,7 @@ namespace tdscript {
     // TODO: parse html https://github.com/lccxz/tg-script/blob/master/tg.rb#L278
 
     ss << "\nhttps://" << host << "/wiki/" << urlencode(std::regex_replace(title, std::regex(" "), "_"));
-    send_text(chat_id, msg_id, ss.str());
+    send_text(chat_id, ss.str());
   }
 
   void Client::process_socket_response(int event_id) {
