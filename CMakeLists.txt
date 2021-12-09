@@ -16,7 +16,7 @@ option(WITH_TESTS "make with tests" ON)
 
 add_subdirectory(lib/td)
 
-SET(LIBRARIES Td::TdStatic Td::TdJson)
+SET(LIBRARIES Td::TdStatic)
 include_directories(include)
 SET(SOURCES src/client.cc)
 
@@ -40,6 +40,6 @@ if (WITH_TESTS)
     endfunction(add_gtest)
 
     add_gtest(test/client_test.cc)
-    add_gtest(test/client_tdjson_test.cc)
     add_gtest(test/save_load_test.cc)
+    add_gtest(test/epoll_test.cc)
 endif (WITH_TESTS)

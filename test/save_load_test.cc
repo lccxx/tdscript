@@ -4,10 +4,6 @@
 
 #include "gtest/gtest.h"
 
-void get_message(std::int64_t msg_id) {
-    std::vector<std::int64_t> message_ids = { msg_id };
-    auto ids = std::move(message_ids);
-  }
 
 TEST(RandomTest, Create) {
   EXPECT_EQ(1, 1) << "1 == 1";

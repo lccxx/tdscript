@@ -3,16 +3,10 @@
 #include "tdscript/client.h"
 
 #include <iostream>
+#include <sstream>
 #include <regex>
-#include <ctime>
-#include <chrono>
-#include <thread>
 #include <fstream>
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/epoll.h>
 #include <signal.h>
 
 
@@ -28,10 +22,6 @@ namespace tdscript {
   const std::vector<std::string> AT_LIST = { "@JulienKM" };
   const std::unordered_map<std::int64_t, std::int64_t> STICKS_STARTING = { { -681384622, 356104798208 } };
 
-  constexpr int MAX_EVENTS = 1;
-  constexpr int SOCKET_TIME_OUT_MS = 5000;
-  constexpr size_t HTTP_BUFFER_SIZE = 8192;
-
   const auto SAVE_FILENAME = std::string(std::getenv("HOME")).append("/").append(".tdscript.save");
   bool save_flag = false;
   bool data_ready = false;
@@ -42,11 +32,8 @@ namespace tdscript {
   std::unordered_map<std::int64_t, std::int64_t> players_message;
   std::unordered_map<std::int64_t, std::uint8_t> need_extend;
 
-  std::unordered_map<std::uint64_t, std::vector<std::function<void()>>> task_queue;
-  std::uint64_t tasks_counter = 0;
+  std::unordered_map<std::time_t, std::vector<std::function<void()>>> task_queue;
 
-
-  Client::Client() : Client(0) { }
 
   Client::Client(std::int32_t log_verbosity_level) {
     check_environment("HOME");
@@ -55,16 +42,22 @@ namespace tdscript {
     check_environment("TG_DB_ENCRYPTION_KEY");
     check_environment("TG_PHOME_NUMBER");
 
-    td::ClientManager::execute(td::td_api::make_object<td::td_api::setLogVerbosityLevel>(log_verbosity_level));
-    client_manager = std::make_unique<td::ClientManager>();
-    client_id = client_manager->create_client_id();
+    signal(SIGINT, quit);
+    signal(SIGTERM, quit);
 
     load();
+
+    td::ClientManager::execute(td::td_api::make_object<td::td_api::setLogVerbosityLevel>(log_verbosity_level));
+    td_client_manager = std::make_unique<td::ClientManager>();
+    client_id = td_client_manager->create_client_id();
+    send_request(td::td_api::make_object<td::td_api::getOption>("version"));
+
+    epollfd = epoll_create1(0);
   }
 
   void Client::send_request(td::td_api::object_ptr<td::td_api::Function> f) {
     std::cout << "send " << (current_query_id + 1) << ": " << td::td_api::to_string(f) << std::endl;
-    client_manager->send(client_id, current_query_id++, std::move(f));
+    td_client_manager->send(client_id, current_query_id++, std::move(f));
   }
 
   void Client::send_parameters() {
@@ -129,7 +122,7 @@ namespace tdscript {
     send_request(std::move(send_message));
 
     // add to the task queue, resend after 3 seconds, limit 9(default)
-    task_queue[tasks_counter + 3].push_back([this, chat_id, bot_id, link, limit]() {
+    task_queue[std::time(nullptr) + 3].push_back([this, chat_id, bot_id, link, limit]() {
       send_start(chat_id, bot_id, link, limit - 1);
     });
   }
@@ -149,6 +142,7 @@ namespace tdscript {
   }
 
   void Client::get_message(std::int64_t chat_id, std::int64_t msg_id) {
+    if (chat_id == 0 || msg_id == 0) { return; }
     std::vector<std::int64_t> message_ids = { msg_id };
     send_request(td::td_api::make_object<td::td_api::getMessages>(chat_id, std::move(message_ids)));
   }
@@ -163,108 +157,117 @@ namespace tdscript {
     send_request(std::move(send_message));
   }
 
+  void Client::send_http_request(std::string host, int port, std::string method, std::string path, std::function<void(std::string)> f) {
+    std::stringstream req;
+    req << method << " " << path << " HTTP/1.1\r\n";
+    req << "Host: " << host << "\r\n";
+    req << "User-Agent: tdscript/" << VERSION << "\r\n";
+    req << "Accept: */*\r\n";
+    req << "\r\n";
+
+    auto data = req.str();
+    int sockfd;
+    if ((sockfd = connect_host(epollfd, host, port)) == -1) {
+      perror("connect");
+      return;
+    }
+    if (send(sockfd, data.c_str(), data.length(), MSG_DONTWAIT) == -1) {
+      perror("send");
+      return;
+    }
+    std::cout << "HTTP request: " << data << '\n';
+    request_callbacks[sockfd] = f;
+  }
+
   void Client::loop() {
-    signal(SIGINT, quit);
-    signal(SIGTERM, quit);
+    while(!stop) {
+      process_tasks(std::time(nullptr));
 
-    std::thread([this] {  // tasks loop thread
-      while(!stop) {
-        // take out the current tasks and process
-        for (const auto task : task_queue[tasks_counter]) {
-          task();
-        }
-        tasks_counter += 1;
-        task_queue[tasks_counter - 1].clear();
+      process_response(td_client_manager->receive(authorized ? TD_RECEIVE_TIMEOUT_S : TD_AUTHORIZE_TIMEOUT_S));
 
-        // confirm the extend
-        for (const auto kv : player_count) {
-          auto chat_id = kv.first;
-          if (pending_extend_mesages[chat_id].size() != 0) {
-            send_extend(chat_id);
-          }
-          if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] > EXTEND_TIME) {
-            send_extend(chat_id);
-          }
-        }
+      process_socket_response(epoll_wait(epollfd, events, MAX_EVENTS, SOCKET_TIME_OUT_MS));
+    }
+  }
 
-        // confirm the number of players
-        for (const auto kv : players_message) {
-          auto chat_id = kv.first;
-          auto msg_id = kv.second;
-          if (msg_id && last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] > EXTEND_TIME / 2
-                && std::time(nullptr) % 7 == 0) {
-            get_message(chat_id, msg_id);
-          }
-        }
+  void Client::process_tasks(std::time_t time) {
+    // take out the current tasks and process
+    for (const auto task : task_queue[time]) {
+      task();
+    }
+    task_queue[time].clear();
 
-        save();
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    // confirm the extend
+    for (const auto kv : player_count) {
+      auto chat_id = kv.first;
+      if (pending_extend_mesages[chat_id].size() != 0) {
+        send_extend(chat_id);
       }
-    }).detach();
-
-    send_request(td::td_api::make_object<td::td_api::getOption>("version"));
-
-    while(!stop) {  // client receive update loop
-      double timeout = 30;
-      if (authorized) {
-        timeout = 3;
+      if (last_extent_at[chat_id] && time - last_extent_at[chat_id] > EXTEND_TIME) {
+        send_extend(chat_id);
       }
+    }
 
-      auto response = client_manager->receive(timeout);
-
-      if (!response.object) {
-        continue;
+    // confirm the number of players
+    for (const auto kv : players_message) {
+      auto chat_id = kv.first;
+      auto msg_id = kv.second;
+      if (time - last_extent_at[chat_id] > EXTEND_TIME / 2 && time % 7 == 0) {
+        get_message(chat_id, msg_id);
       }
+    }
 
-      auto update = std::move(response.object);
-      std::cout << "receive " << response.request_id << ": " << td::td_api::to_string(update) << std::endl;
+    save();
+  }
 
-      if (td::td_api::updateAuthorizationState::ID == update->get_id()) {
-        auto state_id = static_cast<td::td_api::updateAuthorizationState*>(update.get())->authorization_state_->get_id();
-        switch (state_id) {
-        case td::td_api::authorizationStateReady::ID:
-          authorized = true;
-          break;
-        case td::td_api::authorizationStateWaitTdlibParameters::ID:
-          send_parameters();
-          break;
-        case td::td_api::authorizationStateWaitEncryptionKey::ID:
-          send_request(td::td_api::make_object<td::td_api::checkDatabaseEncryptionKey>(std::getenv("TG_DB_ENCRYPTION_KEY")));
-          break;
-        case td::td_api::authorizationStateWaitPhoneNumber::ID:
-          send_request(td::td_api::make_object<td::td_api::setAuthenticationPhoneNumber>(std::getenv("TG_PHOME_NUMBER"), nullptr));
-          break;
-        case td::td_api::authorizationStateWaitCode::ID:
-          send_code();
-          break;
-        case td::td_api::authorizationStateWaitPassword::ID:
-          send_password();
-          break;
-        default:
-          break;
-        }
+  void Client::process_response(td::ClientManager::Response response) {
+    if (!response.object) { return; }
+    auto update = std::move(response.object);
+    std::cout << "receive " << response.request_id << ": " << td::td_api::to_string(update) << std::endl;
+
+    if (td::td_api::updateAuthorizationState::ID == update->get_id()) {
+      auto state_id = static_cast<td::td_api::updateAuthorizationState*>(update.get())->authorization_state_->get_id();
+      switch (state_id) {
+      case td::td_api::authorizationStateReady::ID:
+        authorized = true;
+        break;
+      case td::td_api::authorizationStateWaitTdlibParameters::ID:
+        send_parameters();
+        break;
+      case td::td_api::authorizationStateWaitEncryptionKey::ID:
+        send_request(td::td_api::make_object<td::td_api::checkDatabaseEncryptionKey>(std::getenv("TG_DB_ENCRYPTION_KEY")));
+        break;
+      case td::td_api::authorizationStateWaitPhoneNumber::ID:
+        send_request(td::td_api::make_object<td::td_api::setAuthenticationPhoneNumber>(std::getenv("TG_PHOME_NUMBER"), nullptr));
+        break;
+      case td::td_api::authorizationStateWaitCode::ID:
+        send_code();
+        break;
+      case td::td_api::authorizationStateWaitPassword::ID:
+        send_password();
+        break;
+      default:
+        break;
       }
+    }
 
-      if (td::td_api::updateNewMessage::ID == update->get_id()) {
-        process_message(std::move(static_cast<td::td_api::updateNewMessage*>(update.get())->message_));
+    if (td::td_api::updateNewMessage::ID == update->get_id()) {
+      process_message(std::move(static_cast<td::td_api::updateNewMessage*>(update.get())->message_));
+    }
+
+    if (td::td_api::updateMessageContent::ID == update->get_id()) {
+      auto umsg = static_cast<td::td_api::updateMessageContent*>(update.get());
+      auto msg_id = umsg->message_id_;
+      auto chat_id = umsg->chat_id_;
+      if (td::td_api::messageText::ID == umsg->new_content_->get_id()) {
+        auto text = static_cast<td::td_api::messageText*>(umsg->new_content_.get())->text_->text_;
+        process_message(chat_id, msg_id, 0, text, "");
       }
+    }
 
-      if (td::td_api::updateMessageContent::ID == update->get_id()) {
-        auto umsg = static_cast<td::td_api::updateMessageContent*>(update.get());
-        auto msg_id = umsg->message_id_;
-        auto chat_id = umsg->chat_id_;
-        if (td::td_api::messageText::ID == umsg->new_content_->get_id()) {
-          auto text = static_cast<td::td_api::messageText*>(umsg->new_content_.get())->text_->text_;
-          process_message(chat_id, msg_id, 0, text, "");
-        }
-      }
-
-      if (td::td_api::messages::ID == update->get_id()) {  // from get_message
-        auto msgs = std::move(static_cast<td::td_api::messages*>(update.get())->messages_);
-        for (int i = 0; i < msgs.size(); i++) {
-          process_message(std::move(msgs[i]));
-        }
+    if (td::td_api::messages::ID == update->get_id()) {  // from get_message
+      auto msgs = std::move(static_cast<td::td_api::messages*>(update.get())->messages_);
+      for (int i = 0; i < msgs.size(); i++) {
+        process_message(std::move(msgs[i]));
       }
     }
   }
@@ -368,86 +371,83 @@ namespace tdscript {
     }
   }
 
-
-  int init_sockaddr_in_ipv4(const char *host, int port, struct sockaddr_in *dest) {
-    bzero(dest, sizeof(*dest));
-    dest->sin_family = AF_INET;
-    dest->sin_port = htons(port);
-    if (host == nullptr) {
-      dest->sin_addr.s_addr = INADDR_ANY;
-    } else if (inet_pton(AF_INET, host, &((*dest).sin_addr.s_addr)) == 0) {
-      perror(host);
-      return -1;
-    }
-    return 200;
-  }
-
-  std::string http_request(std::string host, int port, std::string method, std::string path) {
-    int epollfd;
-    if ((epollfd = epoll_create1(0)) == -1) {
-      perror("epoll_create1");
-      return "";
-    }
-
-    int sockfd;
-    if ((sockfd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0) {
-      perror("socket");
-      return "";
-    }
-
-    struct epoll_event event = {};
-    event.events = EPOLLIN;
-    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &event) == -1) {
-      perror("epoll_ctl: ");
-      return "";
-    }
-
-    struct sockaddr_in dest = { };
-    if (init_sockaddr_in_ipv4(host.c_str(), port, &dest) != 200) {
-      return "";
-    }
-
-    if (connect(sockfd, (struct sockaddr *) &dest, sizeof(dest)) != 0) {
-      if (errno != EINPROGRESS) {
-        perror(std::string("Connect ").append(host).append(":").append(std::to_string(port)).c_str());
-        return "";
-      }
-    }
-
-    std::string req = method.append(" ").append(path);
-    req.append(" HTTP/1.1\r\nHost: ").append(host);
-    if (port != 80 || port != 443) {
-      req.append(":").append(std::to_string(port));
-    }
-    req.append("\r\n");
-    req.append("\r\n");
-
-    std::cout << "HTTP request: " << req << '\n';
-
-    if (send(sockfd, req.c_str(), req.size(), MSG_DONTWAIT) == -1) {
-      perror("send");
-      return "";
-    }
-
-    struct epoll_event events[MAX_EVENTS];
-    if (epoll_wait(epollfd, events, MAX_EVENTS, SOCKET_TIME_OUT_MS) < 1) {
-      perror("epoll_wait");
-      return "";
-    }
+  void Client::process_socket_response(int event_id) {
+    if (event_id < 1) { return; }
+    auto event = events[0];
 
     std::string res;
     char buffer[HTTP_BUFFER_SIZE];
     size_t response_size;
     do {
-      if ((response_size = recv(sockfd, buffer, HTTP_BUFFER_SIZE, MSG_DONTWAIT)) == -1) {
+      if ((response_size = recv(event.data.fd, buffer, HTTP_BUFFER_SIZE, MSG_DONTWAIT)) == -1) {
         perror("recv");
-        return res;
+        break;
       }
       res.append(std::string(buffer, 0, response_size));
       if (response_size < HTTP_BUFFER_SIZE) {
-        return res;
+        break;
       }
     } while(true);
+
+    std::cout << "socket(" << event.data.fd << ") response: " << res << '\n';
+    request_callbacks[event.data.fd](res);
+    request_callbacks.erase(event.data.fd);
+    close(event.data.fd);
+  }
+
+
+  void *get_in_addr(struct sockaddr *sa) {
+    if (sa->sa_family == AF_INET) {
+      return &(((struct sockaddr_in*)sa)->sin_addr);
+    }
+
+    return &(((struct sockaddr_in6*)sa)->sin6_addr);
+  }
+
+  int connect_host(int epollfd, std::string host, int port) {
+    int sockfd;
+    struct addrinfo hints, *servinfo, *p;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    char s[INET6_ADDRSTRLEN];
+    int rv = getaddrinfo(host.c_str(), std::to_string(port).c_str(), &hints, &servinfo);
+    if (rv != 0) {
+      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+      return -1;
+    }
+    // loop through all the results and connect to the first we can
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            perror("client: socket");
+            continue;
+        }
+
+        struct epoll_event event;
+        event.events = EPOLLIN;
+        event.data.fd = sockfd;
+        if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &event) == -1) {
+          perror("epoll_ctl: ");
+          return -1;
+        }
+
+        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+            close(sockfd);
+            perror("client: connect");
+            continue;
+        }
+
+        break;
+    }
+    if (p == NULL) {
+      fprintf(stderr, "client: failed to connect\n");
+      return -1;
+    }
+    inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
+    printf("client(%d): connecting to %s\n", sockfd, s);
+    freeaddrinfo(servinfo); // all done with this structure
+
+    return sockfd;
   }
 
   template <typename Tk, typename Tv>
