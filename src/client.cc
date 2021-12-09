@@ -437,7 +437,7 @@ namespace tdscript {
     std::regex title_regex("wiki(.*)$");
     std::smatch lang_match;
     std::smatch title_match;
-    std::string lang = "en";
+    std::string lang;
     std::string title;
     if (std::regex_search(text, lang_match, lang_regex)
           && std::regex_search(text, title_match, title_regex)) {
@@ -450,7 +450,10 @@ namespace tdscript {
     } else {
       return;
     }
-    std::string host = lang.append("wikipedia.org");
+    if (lang.empty()) {
+      lang = "en";
+    }
+    std::string host = lang.append(".wikipedia.org");
     if (title.empty()) {
       send_https_request(host, "/w/api.php?action=query&format=json&list=random&rnnamespace=0", [this, host, chat_id, msg_id](std::string res) {
           std::string body = res.substr(res.find("\r\n\r\n"));
