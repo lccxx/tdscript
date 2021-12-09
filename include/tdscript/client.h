@@ -9,6 +9,9 @@
 #include <td/telegram/td_api.h>
 #include <td/telegram/td_api.hpp>
 
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 #include <stdexcept>
 #include <unordered_map>
 #include <ctime>
@@ -55,6 +58,7 @@ namespace tdscript {
     int epollfd;
     struct epoll_event events[MAX_EVENTS];
     std::unordered_map<std::int32_t, std::function<void(std::string)>> request_callbacks;
+    std::unordered_map<std::int32_t, SSL*> ssls;
 
     Client() : Client(0) {};
     Client(std::int32_t log_verbosity_level);
@@ -70,7 +74,8 @@ namespace tdscript {
     void delete_messages(std::int64_t chat_id, std::vector<std::int64_t> message_ids);
     void get_message(std::int64_t chat_id, std::int64_t msg_id);
     void forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id);
-    void send_http_request(std::string host, int port, std::string method, std::string path, std::function<void(std::string)> f);
+    void send_http_request(std::string host, std::string path, std::function<void(std::string)> f);
+    void send_https_request(std::string host, std::string path, std::function<void(std::string)> f);
 
     void loop();
 
@@ -80,6 +85,7 @@ namespace tdscript {
     void process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, std::string text, std::string link);
     void process_werewolf(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, std::string text, std::string link);
     void process_socket_response(int event_id);
+    void process_ssl_response(struct epoll_event event);
 
     inline void check_environment(const char *name) {
       if (std::getenv(name) == nullptr || std::string(std::getenv(name)).empty()) {
@@ -90,6 +96,8 @@ namespace tdscript {
 
   void *get_in_addr(struct sockaddr *sa);
   int connect_host(int epollfd, std::string host, int port);
+  void log_ssl();
+  std::string gen_http_request_data(std::string host, std::string path);
   template <typename Tk, typename Tv> std::string m2s(std::unordered_map<Tk, Tv> map);
   template <typename Tk, class Tv> std::string ma2s(std::unordered_map<Tk, Tv> map);
   void save();

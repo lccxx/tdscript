@@ -13,25 +13,47 @@ TEST(RandomTest, Create) {
 
   tdscript::player_count.clear();
 
-  client.send_http_request("google.com", 80, "GET", "/?1", [](std::string res) {
+  client.send_http_request("google.com", "/?1", [](std::string res) {
     if (res.find("/?1") != std::string::npos) {
       tdscript::player_count[0] = 1;
     }
   });
-  client.send_http_request("google.com", 80, "GET", "/?2", [](std::string res) {
+  client.send_http_request("google.com", "/?2", [](std::string res) {
     if (res.find("/?2") != std::string::npos) {
       tdscript::player_count[1] = 1;
     }
   });
-  client.send_http_request("google.com", 80, "GET", "/?33333", [](std::string res) {
+  client.send_http_request("google.com", "/?33333", [](std::string res) {
     if (res.find("/?33333") != std::string::npos) {
       tdscript::player_count[2] = 1;
     }
   });
 
+  client.send_https_request("google.com", "/?451592", [](std::string res) {
+    if (res.find("/?451592") != std::string::npos) {
+      tdscript::player_count[3] = 1;
+    }
+  });
+
+  client.send_https_request("google.com", "/?515926", [](std::string res) {
+    if (res.find("/?515926") != std::string::npos) {
+      tdscript::player_count[4] = 1;
+    }
+  });
+
+  client.send_https_request("en.wikipedia.org", "/w/api.php?action=query&format=json&list=random&rnnamespace=0",
+        [](std::string res) {
+          if (res.find("random") != std::string::npos) {
+            tdscript::player_count[5] = 1;
+          }
+      });
+
   EXPECT_FALSE(tdscript::player_count[0]);
   EXPECT_FALSE(tdscript::player_count[1]);
   EXPECT_FALSE(tdscript::player_count[2]);
+  EXPECT_FALSE(tdscript::player_count[3]);
+  EXPECT_FALSE(tdscript::player_count[4]);
+  EXPECT_FALSE(tdscript::player_count[5]);
 
   for (int i = 0; i < 99; i++) {
     int event_id = epoll_wait(client.epollfd, client.events, tdscript::MAX_EVENTS, tdscript::SOCKET_TIME_OUT_MS);
@@ -41,4 +63,7 @@ TEST(RandomTest, Create) {
   EXPECT_TRUE(tdscript::player_count[0]);
   EXPECT_TRUE(tdscript::player_count[1]);
   EXPECT_TRUE(tdscript::player_count[2]);
+  EXPECT_TRUE(tdscript::player_count[3]);
+  EXPECT_TRUE(tdscript::player_count[4]);
+  EXPECT_TRUE(tdscript::player_count[5]);
 }

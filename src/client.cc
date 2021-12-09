@@ -32,6 +32,9 @@ namespace tdscript {
   std::unordered_map<std::int64_t, std::int64_t> players_message;
   std::unordered_map<std::int64_t, std::uint8_t> need_extend;
 
+  SSL_CTX *ssl_ctx;
+
+  std::time_t last_task_at = -1;
   std::unordered_map<std::time_t, std::vector<std::function<void()>>> task_queue;
 
 
@@ -53,6 +56,11 @@ namespace tdscript {
     send_request(td::td_api::make_object<td::td_api::getOption>("version"));
 
     epollfd = epoll_create1(0);
+
+    SSL_library_init();
+    SSLeay_add_ssl_algorithms();
+    SSL_load_error_strings();
+    ssl_ctx = SSL_CTX_new(TLS_client_method());
   }
 
   void Client::send_request(td::td_api::object_ptr<td::td_api::Function> f) {
@@ -157,27 +165,67 @@ namespace tdscript {
     send_request(std::move(send_message));
   }
 
-  void Client::send_http_request(std::string host, int port, std::string method, std::string path, std::function<void(std::string)> f) {
-    std::stringstream req;
-    req << method << " " << path << " HTTP/1.1\r\n";
-    req << "Host: " << host << "\r\n";
-    req << "User-Agent: tdscript/" << VERSION << "\r\n";
-    req << "Accept: */*\r\n";
-    req << "\r\n";
-
-    auto data = req.str();
+  void Client::send_http_request(std::string host, std::string path, std::function<void(std::string)> f) {
     int sockfd;
-    if ((sockfd = connect_host(epollfd, host, port)) == -1) {
+    if ((sockfd = connect_host(epollfd, host, 80)) == -1) {
       perror("connect");
       return;
     }
+    auto data = gen_http_request_data(host, path);
     if (send(sockfd, data.c_str(), data.length(), MSG_DONTWAIT) == -1) {
       perror("send");
+      epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, nullptr);
+      close(sockfd);
       return;
     }
     std::cout << "HTTP request: " << data << '\n';
     request_callbacks[sockfd] = f;
   }
+
+  void Client::send_https_request(std::string host, std::string path, std::function<void(std::string)> f) {
+    int sockfd;
+    if ((sockfd = connect_host(epollfd, host, 443)) == -1) {
+      perror("connect");
+      return;
+    }
+
+    SSL *ssl = SSL_new(ssl_ctx);
+    do {
+      if (!ssl) {
+        printf("Error creating SSL.\n");
+        log_ssl();
+        break;
+      }
+      if (SSL_set_fd(ssl, sockfd) == 0) {
+        printf("Error to set fd.\n");
+        log_ssl();
+        break;
+      }
+      int err = SSL_connect(ssl);
+      if (err <= 0) {
+        printf("Error creating SSL connection.  err=%x\n", err);
+        log_ssl();
+        break;
+      }
+      printf ("SSL connection using %s\n", SSL_get_cipher(ssl));
+
+      auto data = gen_http_request_data(host, path);
+      if (SSL_write(ssl, data.c_str(), data.length()) < 0) {
+        log_ssl();
+        break;
+      }
+
+      std::cout << "HTTPS request: " << data << '\n';
+      request_callbacks[sockfd] = f;
+      ssls[sockfd] = ssl;
+      return;
+    } while (false);
+
+    epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, nullptr);
+    close(sockfd);
+    SSL_free(ssl);
+  }
+
 
   void Client::loop() {
     while(!stop) {
@@ -189,7 +237,11 @@ namespace tdscript {
     }
   }
 
+
   void Client::process_tasks(std::time_t time) {
+    if (last_task_at == time) { return; }
+    last_task_at = time;
+
     // take out the current tasks and process
     for (const auto task : task_queue[time]) {
       task();
@@ -364,9 +416,11 @@ namespace tdscript {
     const std::regex cancel_regex("游戏取消|目前没有进行中的游戏|游戏启动中|夜幕降临|第\\d+天");
     std::smatch cancel_match;
     if (std::regex_search(text, cancel_match, cancel_regex)) {
+      player_count[chat_id] = 0;
       has_owner[chat_id] = 0;
       pending_extend_mesages[chat_id].clear();
       last_extent_at[chat_id] = 0;
+      players_message[chat_id] = 0;
       need_extend[chat_id] = 0;
     }
   }
@@ -375,6 +429,9 @@ namespace tdscript {
     if (event_id < 1) { return; }
     struct epoll_event event = events[0];
     int sockfd = event.data.fd;
+    if (ssls[sockfd]) {
+      return process_ssl_response(event);
+    }
 
     std::string res;
     char buffer[HTTP_BUFFER_SIZE];
@@ -395,6 +452,32 @@ namespace tdscript {
     request_callbacks.erase(sockfd);
     epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, &event);
     close(sockfd);
+  }
+
+  void Client::process_ssl_response(struct epoll_event event) {
+    int sockfd = event.data.fd;
+    SSL *ssl = ssls[sockfd];
+
+    std::string res;
+    char buffer[HTTP_BUFFER_SIZE];
+    int response_size;
+    do {
+      if ((response_size = SSL_read(ssl, buffer, HTTP_BUFFER_SIZE)) <= 0) {
+        perror("recv");
+        break;
+      }
+      res.append(std::string(buffer, 0, response_size));
+      if (response_size < HTTP_BUFFER_SIZE) {
+        break;
+      }
+    } while(true);
+
+    std::cout << "ssl socket(" << sockfd << ") response: " << res << '\n';
+    request_callbacks[sockfd](res);
+    request_callbacks.erase(sockfd);
+    epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, &event);
+    close(sockfd);
+    SSL_free(ssl);
   }
 
 
@@ -421,8 +504,8 @@ namespace tdscript {
     // loop through all the results and connect to the first we can
     for(p = servinfo; p != NULL; p = p->ai_next) {
         if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-            perror("client: socket");
-            continue;
+          perror("client: socket");
+          continue;
         }
 
         struct epoll_event event;
@@ -434,9 +517,10 @@ namespace tdscript {
         }
 
         if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            perror("client: connect");
-            continue;
+          epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, &event);
+          close(sockfd);
+          perror("client: connect");
+          continue;
         }
 
         break;
@@ -450,6 +534,28 @@ namespace tdscript {
     freeaddrinfo(servinfo); // all done with this structure
 
     return sockfd;
+  }
+
+  void log_ssl() {
+    int err;
+    while (err = ERR_get_error()) {
+      char *str = ERR_error_string(err, 0);
+      if (!str)
+          return;
+      printf(str);
+      printf("\n");
+    }
+  }
+
+  std::string gen_http_request_data(std::string host, std::string path) {
+    std::stringstream req;
+    req << "GET " << path << " HTTP/1.1\r\n";
+    req << "Host: " << host << "\r\n";
+    req << "User-Agent: tdscript/" << VERSION << "\r\n";
+    req << "Accept: */*\r\n";
+    req << "\r\n";
+
+    return req.str();
   }
 
   template <typename Tk, typename Tv>
