@@ -8,6 +8,7 @@
 #include <fstream>
 
 #include <signal.h>
+#include <arpa/inet.h>
 
 
 namespace tdscript {
@@ -97,13 +98,18 @@ namespace tdscript {
   }
 
   void Client::send_text(std::int64_t chat_id, std::string text) {
-    send_text(chat_id, 0, text);
+    send_text(chat_id, 0, text, false);
   }
 
-  void Client::send_text(std::int64_t chat_id, std::int64_t reply_id, std::string text) {
+  void Client::send_text(std::int64_t chat_id, std::string text, bool no_link_preview) {
+    send_text(chat_id, 0, text, no_link_preview);
+  }
+
+  void Client::send_text(std::int64_t chat_id, std::int64_t reply_id, std::string text, bool no_link_preview) {
     auto send_message = td::td_api::make_object<td::td_api::sendMessage>();
     send_message->chat_id_ = chat_id;
     send_message->reply_to_message_id_ = reply_id;
+    send_message->reply_to_message_id_ = no_link_preview;
     auto message_content = td::td_api::make_object<td::td_api::inputMessageText>();
     message_content->text_ = td::td_api::make_object<td::td_api::formattedText>();
     message_content->text_->text_ = std::move(text);
@@ -478,7 +484,7 @@ namespace tdscript {
     // TODO: parse html https://github.com/lccxz/tg-script/blob/master/tg.rb#L278
     ss << title << '\n';
     ss << "https://" << host << "/wiki/" << urlencode(std::regex_replace(title, std::regex(" "), "_"));
-    send_text(chat_id, ss.str());
+    send_text(chat_id, ss.str(), true);
   }
 
   void Client::process_socket_response(int event_id) {
@@ -548,6 +554,11 @@ namespace tdscript {
     SSL_free(ssl);
   }
 
+  void check_environment(const char *name) {
+    if (std::getenv(name) == nullptr || std::string(std::getenv(name)).empty()) {
+      throw std::invalid_argument(std::string("$").append(name).append(" empty"));
+    }
+  }
 
   void *get_in_addr(struct sockaddr *sa) {
     if (sa->sa_family == AF_INET) {

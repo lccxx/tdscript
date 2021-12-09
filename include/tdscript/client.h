@@ -22,8 +22,6 @@
 #include <assert.h>
 #include <unistd.h>
 #include <netdb.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
 
@@ -70,7 +68,8 @@ namespace tdscript {
     void send_code();
     void send_password();
     void send_text(std::int64_t chat_id, std::string text);
-    void send_text(std::int64_t chat_id, std::int64_t reply_id, std::string text);
+    void send_text(std::int64_t chat_id, std::string text, bool no_link_preview);
+    void send_text(std::int64_t chat_id, std::int64_t reply_id, std::string text, bool no_link_preview);
     void send_start(std::int64_t chat_id, std::int64_t bot_id, std::string link);
     void send_start(std::int64_t chat_id, std::int64_t bot_id, std::string link, int limit);
     void send_extend(std::int64_t chat_id);
@@ -91,14 +90,9 @@ namespace tdscript {
     void process_wiki(std::int64_t chat_id, std::int64_t msg_id, std::string lang, std::string title);
     void process_socket_response(int event_id);
     void process_ssl_response(struct epoll_event event);
-
-    inline void check_environment(const char *name) {
-      if (std::getenv(name) == nullptr || std::string(std::getenv(name)).empty()) {
-        throw std::invalid_argument(std::string("$").append(name).append(" empty"));
-      }
-    }
   };  // class Client
 
+  void check_environment(const char *name);
   void *get_in_addr(struct sockaddr *sa);
   int connect_host(int epollfd, std::string host, int port);
   void log_ssl();
