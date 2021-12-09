@@ -88,6 +88,7 @@ namespace tdscript {
     void process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, std::string text, std::string link);
     void process_werewolf(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, std::string text, std::string link);
     void process_wiki(std::int64_t chat_id, std::int64_t msg_id, std::string text);
+    void process_wiki(std::int64_t chat_id, std::int64_t msg_id, std::string lang, std::string title);
     void process_socket_response(int event_id);
     void process_ssl_response(struct epoll_event event);
 
@@ -104,6 +105,8 @@ namespace tdscript {
   std::string gen_http_request_data(std::string host, std::string path);
   template <typename Tk, typename Tv> std::string m2s(std::unordered_map<Tk, Tv> map);
   template <typename Tk, class Tv> std::string ma2s(std::unordered_map<Tk, Tv> map);
+  inline unsigned char to_hex( unsigned char x ) { return x + (x > 9 ? ('A'-10) : '0'); }
+  std::string urlencode(const std::string &s);
   void save();
   void load();
 }  // namespace tdscript

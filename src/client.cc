@@ -455,24 +455,30 @@ namespace tdscript {
     }
     std::string host = lang.append(".wikipedia.org");
     if (title.empty()) {
-      send_https_request(host, "/w/api.php?action=query&format=json&list=random&rnnamespace=0", [this, host, chat_id, msg_id](std::string res) {
+      send_https_request(host, "/w/api.php?action=query&format=json&list=random&rnnamespace=0",
+      [this, host, lang, chat_id, msg_id](std::string res) {
           std::string body = res.substr(res.find("\r\n\r\n"));
           try {
             auto data = nlohmann::json::parse(body);
             if (data.contains("query") && data["query"].contains("random") && data["query"]["random"].size() > 0) {
               std::string title = data["query"]["random"][0]["title"];
               std::cout << "wiki random title: " << title << '\n';
-              std::stringstream ss;
-              ss << "<a href='https://" << host << "/wiki/" << title << "'>" << title << "</a>";
-              send_text(chat_id, msg_id, ss.str());
+              process_wiki(chat_id, msg_id, lang, title);
             }
-          } catch (nlohmann::json::parse_error &ex) {
-            
-          }
+          } catch (nlohmann::json::parse_error &ex) { }
       });
     } else {
-      send_text(chat_id, msg_id, "waiting for HTML parse ...");
+      process_wiki(chat_id, msg_id, lang, title);
     }
+  }
+
+  void Client::process_wiki(std::int64_t chat_id, std::int64_t msg_id, std::string lang, std::string title) {
+    std::string host = lang.append(".wikipedia.org");
+    std::stringstream ss;
+    ss << title << '\n';
+    // TODO: parse html https://github.com/lccxz/tg-script/blob/master/tg.rb#L278
+    ss << "\nhttps://" << host << "/wiki/" << urlencode(title);
+    send_text(chat_id, msg_id, ss.str());
   }
 
   void Client::process_socket_response(int event_id) {
@@ -641,6 +647,24 @@ namespace tdscript {
       line.append(block).append(",");
     }
     return line;
+  }
+
+  std::string urlencode(const std::string &s) {
+    std::ostringstream os;
+
+    for (std::string::const_iterator ci = s.begin(); ci != s.end(); ++ci) {
+      if ((*ci >= 'a' && *ci <= 'z') ||
+              (*ci >= 'A' && *ci <= 'Z') ||
+              (*ci >= '0' && *ci <= '9') ) { // allowed
+        os << *ci;
+      } else if (*ci == ' ') {
+        os << '+';
+      } else {
+        os << '%' << to_hex(*ci >> 4) << to_hex(*ci % 16);
+      }
+    }
+
+    return os.str();
   }
 
   void save() {
