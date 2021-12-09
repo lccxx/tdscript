@@ -130,7 +130,7 @@ namespace tdscript {
     if (!need_extend[chat_id]) { return; }
     if (!has_owner[chat_id]) { return; }
     if (player_count[chat_id] >= 5) { return; }
-    if (pending_extend_mesages[chat_id].size() > 30) { return; }
+    if (pending_extend_mesages[chat_id].size() > 10) { return; }
     if (last_extent_at[chat_id] && std::time(nullptr) - last_extent_at[chat_id] < 5) { return; }
     last_extent_at[chat_id] = std::time(nullptr);
     send_text(chat_id, EXTEND_TEXT);
