@@ -477,7 +477,8 @@ namespace tdscript {
     std::stringstream ss;
     ss << title << '\n';
     // TODO: parse html https://github.com/lccxz/tg-script/blob/master/tg.rb#L278
-    ss << "\nhttps://" << host << "/wiki/" << urlencode(title);
+
+    ss << "\nhttps://" << host << "/wiki/" << urlencode(std::regex_replace(title, std::regex(" "), "_"));
     send_text(chat_id, msg_id, ss.str());
   }
 
