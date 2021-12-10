@@ -8,15 +8,13 @@ git clone --recurse-submodules https://github.com/lccxz/tdscript.git
 
 cd tdscript
 
-cmake -S . -B build
-# cmake -DWITH_STATIC=ON -DWITH_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -S . -B build-release
+cmake -G Ninja -S . -B build
+# cmake -G Ninja -DWITH_STATIC=ON -DWITH_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -S . -B build-release
 
 cmake --build build
 # cmake --build build-release
 
 build/tdscript_test_client_test
-
-# cmake -S . -B build && cmake --build build && build/tdscript_test_client_test
 
 build/tdscript
 ```
