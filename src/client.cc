@@ -12,18 +12,18 @@
 
 
 namespace tdscript {
-  const std::string VERSION = std::to_string(TDSCRIPT_VERSION_MAJOR).append(".").append(std::to_string(TDSCRIPT_VERSION_MINOR));
+  const std::string VERSION = std::to_string(TDSCRIPT_VERSION_MAJOR) + std::string(".") + std::to_string(TDSCRIPT_VERSION_MINOR);
 
   bool stop = false;
   void quit(int signum) { stop = true; }
 
   const std::int64_t USER_ID_WEREWOLF = 175844556;
   const std::int32_t EXTEND_TIME = 123;
-  const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ").append(std::to_string(EXTEND_TIME));
+  const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ") + std::to_string(EXTEND_TIME);
   const std::vector<std::string> AT_LIST = { "@JulienKM" };
   const std::unordered_map<std::int64_t, std::int64_t> STICKS_STARTING = { { -681384622, 356104798208 } };
 
-  const auto SAVE_FILENAME = std::string(std::getenv("HOME")).append("/").append(".tdscript.save");
+  const std::string SAVE_FILENAME = std::string(std::getenv("HOME")) + std::string("/.tdscript.save");
   bool save_flag = false;
   bool data_ready = false;
   std::unordered_map<std::int64_t, std::int32_t> player_count;
@@ -242,7 +242,7 @@ namespace tdscript {
     while(!stop) {
       process_tasks(std::time(nullptr));
 
-      process_response(td_client_manager->receive(authorized ? TD_RECEIVE_TIMEOUT_S : TD_AUTHORIZE_TIMEOUT_S));
+      process_response(td_client_manager->receive(authorized ? RECEIVE_TIMEOUT_S : AUTHORIZE_TIMEOUT_S));
 
       process_socket_response(epoll_wait(epollfd, events, MAX_EVENTS, SOCKET_TIME_OUT_MS));
     }
@@ -520,31 +520,62 @@ namespace tdscript {
     int sockfd = event.data.fd;
     SSL *ssl = ssls[sockfd];
 
-    std::regex length_regex("Content-Length: (\\d+)", std::regex_constants::icase);
     std::string res;
     char buffer[HTTP_BUFFER_SIZE];
     int response_size;
+    std::uint64_t content_length = 0;
+    bool chunked = false;
+    std::regex length_regex("\r\nContent-Length: (\\d+)\r\n", std::regex_constants::icase);
+    std::regex chunked_regex("\r\nTransfer-Encoding: chunked\r\n", std::regex_constants::icase);
+    std::size_t blank_line_pos = std::string::npos;
     do {
       if ((response_size = SSL_read(ssl, buffer, HTTP_BUFFER_SIZE)) <= 0) {
         perror("recv");
         break;
       }
-      res.append(std::string(buffer, 0, response_size));
-      std::string body = res.substr(res.find("\r\n\r\n") + 4);
-      std::smatch length_match;
-      std::uint16_t content_length;
-      if (std::regex_search(res, length_match, length_regex)) {
-        if (length_match.size() == 2) {
-          content_length = std::stoull(length_match[1]);
+      res.append(buffer, 0, response_size);
+      if (content_length == 0 && chunked == false) {
+        std::smatch length_match;
+        std::smatch chunked_match;
+        if (std::regex_search(res, length_match, length_regex)) {
+          if (length_match.size() == 2) {
+            content_length = std::stoull(length_match[1]);
+          }
+        } else if (std::regex_search(res, chunked_match, chunked_regex)) {
+          chunked = true;
         }
       }
-      if (content_length && content_length > body.length()) {
-        continue;
+      if (blank_line_pos == std::string::npos) {
+        blank_line_pos = res.find("\r\n\r\n");
       }
-      if (response_size < HTTP_BUFFER_SIZE) {
-        break;
+      if (blank_line_pos != std::string::npos) {
+        if (content_length > 0) {
+          if (res.length() - (blank_line_pos + 4) >= content_length) {
+            break;
+          }
+        } else if (chunked) {
+          if ((res.find("0\r\n\r\n") + 5) == res.length()) {
+            break;
+          }
+        }
       }
     } while(true);
+
+    if (chunked) {
+      std::string head = res.substr(0, blank_line_pos);
+      std::string body;
+      std::vector<std::string> chunks;
+      std::size_t chunk_start_pos = blank_line_pos + 4, chunk_data_start_pos, chunk_size;
+
+      do {
+        chunk_data_start_pos = res.find("\r\n", chunk_start_pos) + 2;
+        chunk_size = std::stoull(res.substr(chunk_start_pos, chunk_data_start_pos - chunk_start_pos), 0, 16);
+        body.append(res, chunk_data_start_pos, chunk_size);
+        chunk_start_pos = chunk_data_start_pos + chunk_size + 2;
+      } while(chunk_size > 0 && chunk_start_pos < res.length() - 1);
+
+      res = head.append("\r\n\r\n").append(body);
+    }
 
     std::cout << "ssl socket(" << sockfd << ") response: " << res << '\n';
     request_callbacks[sockfd](res);

@@ -44,7 +44,7 @@ TEST(RandomTest, Create) {
   });
 
   client.send_https_request("en.wikipedia.org", "/w/api.php?action=query&format=json&list=random&rnnamespace=0",
-        [](std::string res) {
+        [&client](std::string res) {
           if (res.find("random") != std::string::npos) {
             tdscript::player_count[5] = 1;
           }
@@ -62,11 +62,21 @@ TEST(RandomTest, Create) {
           try {
             auto data = nlohmann::json::parse(body);
             if (data.contains("query") && data["query"].contains("random") && data["query"]["random"].size() > 0) {
-              std::cout << "random title: " << data["query"]["random"][0]["title"] << '\n';
+              std::string title = data["query"]["random"][0]["title"];
+              std::cout << "random title: " << title << '\n';
+              client.send_https_request("en.wikipedia.org", "/w/api.php?action=parse&format=json&page=" + tdscript::urlencode(title),
+              [](std::string res) {
+                std::string body = res.substr(res.find("\r\n\r\n") + 4);
+                auto data = nlohmann::json::parse(body);
+                if (data.contains("error")) {
+                  std::cout << data["error"]["info"] << '\n';
+                }
+                if (data.contains("parse") && data["parse"].contains("text") && data["parse"]["text"].contains("*") > 0) {
+                  std::cout << data["parse"]["text"]["*"] << '\n';
+                }
+              });
             }
-          } catch (nlohmann::json::parse_error &ex) {
-            
-          }
+          } catch (nlohmann::json::parse_error &ex) { }
       });
 
   EXPECT_FALSE(tdscript::player_count[0]);

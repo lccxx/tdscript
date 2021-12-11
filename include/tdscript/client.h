@@ -41,8 +41,8 @@ namespace tdscript {
   extern std::unordered_map<std::int64_t, std::int64_t> players_message;
   extern std::unordered_map<std::int64_t, std::uint8_t> need_extend;
 
-  const double TD_RECEIVE_TIMEOUT_S = 0.01;
-  const double TD_AUTHORIZE_TIMEOUT_S = 30;
+  const double RECEIVE_TIMEOUT_S = 0.01;
+  const double AUTHORIZE_TIMEOUT_S = 30;
   const int SOCKET_TIME_OUT_MS = 10;
   constexpr int MAX_EVENTS = 1;
   constexpr size_t HTTP_BUFFER_SIZE = 8192;
