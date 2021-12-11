@@ -33,6 +33,8 @@ namespace tdscript {
   std::unordered_map<std::int64_t, std::int64_t> players_message;
   std::unordered_map<std::int64_t, std::uint8_t> need_extend;
 
+  bool werewolf_bot_warning = false;
+
   SSL_CTX *ssl_ctx;
 
   std::time_t last_task_at = -1;
@@ -122,6 +124,7 @@ namespace tdscript {
   }
 
   void Client::send_start(std::int64_t chat_id, std::int64_t bot_id, std::string link, int limit) {
+    if (werewolf_bot_warning) { return; }
     if (has_owner[chat_id]) { return; }
     if (!need_extend[chat_id]) { return; }
     if (limit <= 0) { return ; }
@@ -147,6 +150,7 @@ namespace tdscript {
   }
 
   void Client::send_extend(std::int64_t chat_id) {
+    if (werewolf_bot_warning) { return; }
     if (!need_extend[chat_id]) { return; }
     if (!has_owner[chat_id]) { return; }
     if (player_count[chat_id] >= 5) { return; }
@@ -383,6 +387,11 @@ namespace tdscript {
   }
 
   void Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, std::string text, std::string link) {
+    if (user_id != 0 && text == "Please do not spam me. Next time is automated ban.") {
+      werewolf_bot_warning = true;
+      task_queue[std::time(nullptr) + 99].push_back([]() { werewolf_bot_warning = false; });
+    }
+
     const std::regex players_regex("^#players: (\\d+)");
     std::smatch players_match;
     if (std::regex_search(text, players_match, players_regex)) {
