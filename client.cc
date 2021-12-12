@@ -485,12 +485,13 @@ namespace tdscript {
 
   void Client::process_wiki(std::int64_t chat_id, std::int64_t msg_id, std::string lang, std::string title) {
     std::string host = lang + ".wikipedia.org";
-    send_https_request("en.wikipedia.org", "/w/api.php?action=parse&format=json&page=" + tdscript::urlencode(title),
+    send_https_request(host, "/w/api.php?action=parse&format=json&page=" + tdscript::urlencode(title),
     [this, chat_id, lang, title](std::string res) {
       std::string body = res.substr(res.find("\r\n\r\n") + 4);
       auto data = nlohmann::json::parse(body);
       if (data.contains("error")) {
         std::cout << data["error"]["info"] << '\n';
+        send_text(chat_id, data["error"]["info"], true);
       }
       if (data.contains("parse") && data["parse"].contains("text") && data["parse"]["text"].contains("*") > 0) {
         std::string text = data["parse"]["text"]["*"];
@@ -524,6 +525,7 @@ namespace tdscript {
 
         article_desc = std::regex_replace(article_desc, std::regex("\\[\\d+\\]"), "");
         std::cout << "'" << title << "': '" << article_desc << "'\n";
+
         send_text(chat_id, article_desc, true);
 
         xmlFreeDoc(doc);
