@@ -3,9 +3,6 @@ cmake_minimum_required(VERSION 3.11)
 project(tdscript VERSION 0.1)
 
 find_package(OpenSSL)
-
-set(LIBXML2_WITH_PYTHON OFF)
-
 add_subdirectory(lib/td)
 add_subdirectory(lib/json)
 add_subdirectory(lib/libxml2)

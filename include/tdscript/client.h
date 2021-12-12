@@ -10,11 +10,11 @@
 #include <td/telegram/td_api.hpp>
 
 #include <openssl/ssl.h>
-#include <openssl/err.h>
 
 #include <nlohmann/json.hpp>
 
-#include <libxml/xpath.h>
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 
 #include <stdexcept>
 #include <unordered_map>

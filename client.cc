@@ -484,12 +484,52 @@ namespace tdscript {
   }
 
   void Client::process_wiki(std::int64_t chat_id, std::int64_t msg_id, std::string lang, std::string title) {
-    std::string host = lang.append(".wikipedia.org");
-    std::stringstream ss;
-    // TODO: parse html https://github.com/lccxz/tg-script/blob/master/tg.rb#L278
-    ss << title << '\n';
-    ss << "https://" << host << "/wiki/" << urlencode(std::regex_replace(title, std::regex(" "), "_"));
-    send_text(chat_id, ss.str(), true);
+    std::string host = lang + ".wikipedia.org";
+    send_https_request("en.wikipedia.org", "/w/api.php?action=parse&format=json&page=" + tdscript::urlencode(title),
+    [this, chat_id, lang, title](std::string res) {
+      std::string body = res.substr(res.find("\r\n\r\n") + 4);
+      auto data = nlohmann::json::parse(body);
+      if (data.contains("error")) {
+        std::cout << data["error"]["info"] << '\n';
+      }
+      if (data.contains("parse") && data["parse"].contains("text") && data["parse"]["text"].contains("*") > 0) {
+        std::string text = data["parse"]["text"]["*"];
+
+        xmlInitParser();
+        xmlDocPtr doc = xmlParseMemory(text.c_str(), text.length());
+        if (doc == NULL) {
+          fprintf(stderr, "Error: unable to parse string: \"%s\"\n", text.c_str());
+          return;
+        }
+
+        // xmlDocDump(stdout, doc);
+        std::string article_desc;
+        std::vector<std::string> desc_find_kws = { "。", " is ", " was ", "." };
+        xmlNode *root = xmlDocGetRootElement(doc);
+        for (xmlNode *node = root; node; node = node->next ? node->next : node->children) {
+          std::cout << "node name: '" << node->name << "'\n";
+          if (tdscript::xmlCheckEq(node->name, "p")) {
+            std::string content = tdscript::xmlNodeGetContentStr(node);
+            for (const auto kw : desc_find_kws) {
+              if (content.find(kw) != std::string::npos) {
+                article_desc = content;
+                break;
+              }
+            }
+          }
+          if (!article_desc.empty()) {
+            break;
+          }
+        }
+
+        article_desc = std::regex_replace(article_desc, std::regex("\\[\\d+\\]"), "");
+        std::cout << "'" << title << "': '" << article_desc << "'\n";
+        send_text(chat_id, article_desc, true);
+
+        xmlFreeDoc(doc);
+        xmlCleanupParser();
+      }
+    });
   }
 
   void Client::process_socket_response(int event_id) {
