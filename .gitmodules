@@ -7,6 +7,6 @@
 [submodule "lib/json"]
 	path = lib/json
 	url = https://github.com/nlohmann/json.git
-[submodule "lib/libressl"]
-	path = lib/libressl
-	url = https://github.com/lccxz/libressl.git
+[submodule "lib/libxml2"]
+	path = lib/libxml2
+	url = https://github.com/GNOME/libxml2.git

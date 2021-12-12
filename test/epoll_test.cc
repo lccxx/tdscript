@@ -11,6 +11,10 @@ TEST(RandomTest, Create) {
   EXPECT_EQ(1, 1) << "1 == 1";
   EXPECT_EQ("0.1", tdscript::VERSION) << "version";
 
+  ASSERT_EQ("C8", tdscript::char_to_hex(200));
+
+  ASSERT_EQ("Flag+of+Cimi%C8%99lia", tdscript::urlencode("Flag of Cimișlia"));
+
   auto client = tdscript::Client(0);
 
   tdscript::player_count.clear();
@@ -65,14 +69,47 @@ TEST(RandomTest, Create) {
               std::string title = data["query"]["random"][0]["title"];
               std::cout << "random title: " << title << '\n';
               client.send_https_request("en.wikipedia.org", "/w/api.php?action=parse&format=json&page=" + tdscript::urlencode(title),
-              [](std::string res) {
+              [title](std::string res) {
                 std::string body = res.substr(res.find("\r\n\r\n") + 4);
                 auto data = nlohmann::json::parse(body);
                 if (data.contains("error")) {
                   std::cout << data["error"]["info"] << '\n';
                 }
                 if (data.contains("parse") && data["parse"].contains("text") && data["parse"]["text"].contains("*") > 0) {
-                  std::cout << data["parse"]["text"]["*"] << '\n';
+                  std::string text = data["parse"]["text"]["*"];
+
+                  xmlInitParser();
+                  xmlDocPtr doc = xmlParseMemory(text.c_str(), text.length());
+                  if (doc == NULL) {
+                    fprintf(stderr, "Error: unable to parse string: \"%s\"\n", text.c_str());
+                    return;
+                  }
+
+                  // xmlDocDump(stdout, doc);
+                  std::string article_desc;
+                  std::vector<std::string> desc_find_kws = { "。", " is ", " was ", "." };
+                  xmlNode *root = xmlDocGetRootElement(doc);
+                  for (xmlNode *node = root; node; node = node->next ? node->next : node->children) {
+                    std::cout << "node name: '" << node->name << "'\n";
+                    if (tdscript::xmlCheckEq(node->name, "p")) {
+                      std::string content = tdscript::xmlNodeGetContentStr(node);
+                      for (const auto kw : desc_find_kws) {
+                        if (content.find(kw) != std::string::npos) {
+                          article_desc = content;
+                          break;
+                        }
+                      }
+                    }
+                    if (!article_desc.empty()) {
+                      break;
+                    }
+                  }
+
+                  article_desc = std::regex_replace(article_desc, std::regex("\\[\\d+\\]"), "");
+                  std::cout << "'" << title << "': '" << article_desc << "'\n";
+
+                  xmlFreeDoc(doc);
+                  xmlCleanupParser();
                 }
               });
             }

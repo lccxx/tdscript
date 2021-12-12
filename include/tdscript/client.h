@@ -14,6 +14,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include <libxml/xpath.h>
+
 #include <stdexcept>
 #include <unordered_map>
 #include <ctime>
@@ -47,6 +49,7 @@ namespace tdscript {
   constexpr int MAX_EVENTS = 1;
   constexpr size_t HTTP_BUFFER_SIZE = 8192;
 
+  const std::vector<std::string> HEX_CODES = { "0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F" };
 
   class Client {
   public:
@@ -95,12 +98,14 @@ namespace tdscript {
   void check_environment(const char *name);
   void *get_in_addr(struct sockaddr *sa);
   int connect_host(int epollfd, std::string host, int port);
-  void log_ssl();
   std::string gen_http_request_data(std::string host, std::string path);
+  bool xmlCheckEq(const xmlChar *a, const char *b);
+  bool xmlCheckEq(const xmlChar *a, const xmlChar *b);
+  std::string xmlNodeGetContentStr(const xmlNode *node);
   template <typename Tk, typename Tv> std::string m2s(std::unordered_map<Tk, Tv> map);
   template <typename Tk, class Tv> std::string ma2s(std::unordered_map<Tk, Tv> map);
-  inline unsigned char to_hex( unsigned char x ) { return x + (x > 9 ? ('A'-10) : '0'); }
-  std::string urlencode(const std::string &s);
+  std::string urlencode(const std::string s);
+  std::string char_to_hex(char c);
   void save();
   void load();
 }  // namespace tdscript

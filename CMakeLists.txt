@@ -2,9 +2,13 @@ cmake_minimum_required(VERSION 3.11)
 
 project(tdscript VERSION 0.1)
 
+find_package(OpenSSL)
+
+set(LIBXML2_WITH_PYTHON OFF)
+
 add_subdirectory(lib/td)
-add_subdirectory(lib/libressl)
 add_subdirectory(lib/json)
+add_subdirectory(lib/libxml2)
 
 configure_file(version.h.in include/${PROJECT_NAME}/version.h)
 
@@ -14,9 +18,9 @@ option(WITH_TESTS "make with tests" ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-SET(LIBRARIES Td::TdStatic ssl tls nlohmann_json::nlohmann_json)
-SET(INCLUDES include ${PROJECT_BINARY_DIR}/include)
-SET(SOURCES src/client.cc)
+SET(LIBRARIES Td::TdStatic ${OPENSSL_SSL_LIBRARY} nlohmann_json::nlohmann_json LibXml2)
+SET(INCLUDES include ${PROJECT_BINARY_DIR}/include ${OPENSSL_INCLUDE_DIR})
+SET(SOURCES client.cc)
 
 add_executable(${PROJECT_NAME} ${SOURCES} example/main.cc)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARIES})

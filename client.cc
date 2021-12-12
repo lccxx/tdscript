@@ -208,25 +208,21 @@ namespace tdscript {
     do {
       if (!ssl) {
         printf("Error creating SSL.\n");
-        log_ssl();
         break;
       }
       if (SSL_set_fd(ssl, sockfd) == 0) {
         printf("Error to set fd.\n");
-        log_ssl();
         break;
       }
       int err = SSL_connect(ssl);
       if (err <= 0) {
         printf("Error creating SSL connection.  err=%x\n", err);
-        log_ssl();
         break;
       }
       printf ("SSL connection using %s\n", SSL_get_cipher(ssl));
 
       auto data = gen_http_request_data(host, path);
       if (SSL_write(ssl, data.c_str(), data.length()) < 0) {
-        log_ssl();
         break;
       }
 
@@ -655,17 +651,6 @@ namespace tdscript {
     return sockfd;
   }
 
-  void log_ssl() {
-    int err;
-    while (err = ERR_get_error()) {
-      char *str = ERR_error_string(err, 0);
-      if (!str)
-          return;
-      printf(str);
-      printf("\n");
-    }
-  }
-
   std::string gen_http_request_data(std::string host, std::string path) {
     std::stringstream req;
     req << "GET " << path << " HTTP/1.1\r\n";
@@ -675,6 +660,24 @@ namespace tdscript {
     req << "\r\n";
 
     return req.str();
+  }
+
+  bool xmlCheckEq(const xmlChar *a, const char *b) {
+    int i = 0;
+    do { if (a[i] != b[i]) { return false; }; i++; } while (a[i] && b[i]);
+    return true;
+  }
+
+  bool xmlCheckEq(const xmlChar *a, const xmlChar *b) {
+    int i = 0;
+    do { if (a[i] != b[i]) { return false; }; i++; } while (a[i] && b[i]);
+    return true;
+  }
+
+  std::string xmlNodeGetContentStr(const xmlNode *node) {
+    std::stringstream content;
+    content << xmlNodeGetContent(node);
+    return content.str();
   }
 
   template <typename Tk, typename Tv>
@@ -700,22 +703,32 @@ namespace tdscript {
     return line;
   }
 
-  std::string urlencode(const std::string &s) {
-    std::ostringstream os;
+  std::string urlencode(std::string str) {
+    std::string encode;
 
-    for (std::string::const_iterator ci = s.begin(); ci != s.end(); ++ci) {
-      if ((*ci >= 'a' && *ci <= 'z') ||
-              (*ci >= 'A' && *ci <= 'Z') ||
-              (*ci >= '0' && *ci <= '9') ) { // allowed
-        os << *ci;
-      } else if (*ci == ' ') {
-        os << '+';
+    const char *s = str.c_str();
+    for (int i = 0; s[i]; i++) {
+      char ci = s[i];
+      if ((ci >= 'a' && ci <= 'z') ||
+              (ci >= 'A' && ci <= 'Z') ||
+              (ci >= '0' && ci <= '9') ) { // allowed
+        encode.push_back(ci);
+      } else if (ci == ' ') {
+        encode.push_back('+');
       } else {
-        os << '%' << to_hex(*ci >> 4) << to_hex(*ci % 16);
+        encode.append("%").append(char_to_hex(ci));
       }
     }
 
-    return os.str();
+    return encode;
+  }
+
+  std::string char_to_hex(char c) {
+    std::uint8_t n = c;
+    std::string res;
+    res.append(HEX_CODES[n / 16]);
+    res.append(HEX_CODES[n % 16]);
+    return res;
   }
 
   void save() {
