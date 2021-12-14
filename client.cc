@@ -403,7 +403,7 @@ namespace tdscript {
 
       for (const auto player : KEY_PLAYERS) {
       	if (text.find(player.first) != std::string::npos) {
-          if (std::find(at_list[chat_id].begin(), at_list[chat_id].end(), player.first) == at_list[chat_id].end()) {
+          if (std::find(at_list[chat_id].begin(), at_list[chat_id].end(), player.second) == at_list[chat_id].end()) {
 	    at_list[chat_id].push_back(player.second);
 	  }
 	}
