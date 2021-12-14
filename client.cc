@@ -20,7 +20,6 @@ namespace tdscript {
   const std::int64_t USER_ID_WEREWOLF = 175844556;
   const std::int32_t EXTEND_TIME = 123;
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ") + std::to_string(EXTEND_TIME);
-  const std::vector<std::string> AT_LIST = { "@JulienKM" };
   const std::unordered_map<std::int64_t, std::int64_t> STICKS_STARTING = { { -681384622, 356104798208 } };
 
   const std::string SAVE_FILENAME = std::string(std::getenv("HOME")) + std::string("/.tdscript.save");
@@ -33,6 +32,8 @@ namespace tdscript {
   std::unordered_map<std::int64_t, std::int64_t> players_message;
   std::unordered_map<std::int64_t, std::uint8_t> need_extend;
 
+  const std::unordered_map<std::string, std::string> KEY_PLAYERS = { { "KMM", "@JulienKM" } };
+  std::unordered_map<std::int64_t, std::vector<std::string>> at_list;  // the '@' list
   bool werewolf_bot_warning = false;
 
   const std::unordered_map<std::int32_t, std::string> AF_MAP = { { AF_INET, "IPv4" }, { AF_INET6, "IPv6"} };
@@ -379,7 +380,7 @@ namespace tdscript {
     const std::regex starting_regex("游戏启动中");
     std::smatch starting_match;
     if (std::regex_search(text, starting_match, starting_regex)) {
-      for (const auto at : AT_LIST) { send_text(chat_id, at); }
+      for (const auto at : at_list[chat_id]) { send_text(chat_id, at); }; at_list[chat_id].clear();
       for (const auto kv : STICKS_STARTING) { forward_message(chat_id, kv.first, kv.second); }
     }
 
@@ -395,15 +396,21 @@ namespace tdscript {
     const std::regex players_regex("^#players: (\\d+)");
     std::smatch players_match;
     if (std::regex_search(text, players_match, players_regex)) {
-      if (players_match.size() == 2) {
-        player_count[chat_id] = std::stoi(players_match[1]);
+      player_count[chat_id] = std::stoi(players_match[1]);
 
-        if (user_id && msg_id) {
-          if (players_message[chat_id] != msg_id) {
-            last_extent_at[chat_id] = std::time(nullptr);
-          }
-          players_message[chat_id] = msg_id;
+      if (user_id && msg_id) {
+        if (players_message[chat_id] != msg_id) {
+          last_extent_at[chat_id] = std::time(nullptr);
         }
+        players_message[chat_id] = msg_id;
+      }
+
+      for (const auto player : KEY_PLAYERS) {
+      	if (text.find(player.first) != std::string::npos) {
+          if (std::find(at_list[chat_id].begin(), at_list[chat_id].end(), player.second) == at_list[chat_id].end()) {
+	    at_list[chat_id].push_back(player.second);
+	  }
+	}
       }
     }
 
