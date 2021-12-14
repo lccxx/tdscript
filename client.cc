@@ -35,6 +35,10 @@ namespace tdscript {
 
   bool werewolf_bot_warning = false;
 
+  const std::unordered_map<std::int32_t, std::string> AF_MAP = { { AF_INET, "IPv4" }, { AF_INET6, "IPv6"} };
+  std::unordered_map<std::string, std::unordered_map<std::int32_t, std::string>> hosts = {
+    { "wikipedia.org", { { AF_INET, "103.102.166.224" }, { AF_INET6, "2001:df2:e500:ed1a::1" } } }
+  };
   SSL_CTX *ssl_ctx;
 
   std::time_t last_task_at = -1;
@@ -483,6 +487,8 @@ namespace tdscript {
     }
   }
 
+  // TODO: fix https://en.wikipedia.org/wiki/Civil_War
+  // TODO: implement https://github.com/lccxz/tg-script/blob/master/tg.rb#L278
   void Client::process_wiki(std::int64_t chat_id, std::int64_t msg_id, std::string lang, std::string title) {
     std::string host = lang + ".wikipedia.org";
     send_https_request(host, "/w/api.php?action=parse&format=json&page=" + tdscript::urlencode(title),
@@ -638,59 +644,76 @@ namespace tdscript {
     }
   }
 
-  void *get_in_addr(struct sockaddr *sa) {
-    if (sa->sa_family == AF_INET) {
-      return &(((struct sockaddr_in*)sa)->sin_addr);
+  int connect_ip(int epollfd, std::int32_t af, std::string ip_addr, int port) {
+    int sockfd = -1;
+    if ((sockfd = socket(af, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+      std::cout << AF_MAP.at(af) << " socket create error" << '\n';
+      return -1;
+    }
+    struct epoll_event event;
+    event.events = EPOLLIN;
+    event.data.fd = sockfd;
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &event) == -1) {
+      perror("epoll_ctl: ");
+      close(sockfd);
+      return -1;
+    }
+    struct sockaddr *sock_addr = nullptr;
+    std::size_t sock_addr_len = 0;
+    if (af == AF_INET) {
+      struct sockaddr_in sock_addr_v4;
+      sock_addr_v4.sin_family = af;
+      sock_addr_v4.sin_port = htons(port);
+      inet_pton(af, ip_addr.c_str(), &sock_addr_v4.sin_addr);
+      sock_addr_len = sizeof(sock_addr_v4);
+      sock_addr = (struct sockaddr*)(&sock_addr_v4);
+    } else if (af == AF_INET6) {
+      struct sockaddr_in6 sock_addr_v6;
+      sock_addr_v6.sin6_family = af;
+      sock_addr_v6.sin6_port = htons(port);
+      inet_pton(af, ip_addr.c_str(), &sock_addr_v6.sin6_addr);
+      sock_addr_len = sizeof(sock_addr_v6);
+      sock_addr = (struct sockaddr*)(&sock_addr_v6);
+    }
+    if (sock_addr != nullptr) {
+      std::cout << "connecting to " << ip_addr << '\n';
+      if (connect(sockfd, sock_addr, sock_addr_len) == -1) {
+        perror("socket connect");
+        epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, &event);
+        close(sockfd);
+        return -1;
+      }
+
+      std::cout << "connected to " << ip_addr << '\n';
+      return sockfd;
+    } else {
+      epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, &event);
+      close(sockfd);
     }
 
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
+    return sockfd;
   }
 
   int connect_host(int epollfd, std::string host, int port) {
-    int sockfd;
-    struct addrinfo hints, *servinfo, *p;
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    char s[INET6_ADDRSTRLEN];
-    int rv = getaddrinfo(host.c_str(), std::to_string(port).c_str(), &hints, &servinfo);
-    if (rv != 0) {
-      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-      return -1;
-    }
-    // loop through all the results and connect to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-          perror("client: socket");
-          continue;
+    std::string domain = host;
+    while (!domain.empty()) {
+      if (hosts.find(domain) != hosts.end()) {
+        for (const auto addr : hosts.at(domain)) {
+          std::int32_t af = addr.first;
+          std::string ip_addr = addr.second;
+          int sockfd = connect_ip(epollfd, af, ip_addr, port);
+          if (sockfd != -1) {
+            return sockfd;
+          }
         }
+      }
 
-        struct epoll_event event;
-        event.events = EPOLLIN;
-        event.data.fd = sockfd;
-        if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &event) == -1) {
-          perror("epoll_ctl: ");
-          return -1;
-        }
-
-        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-          epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, &event);
-          close(sockfd);
-          perror("client: connect");
-          continue;
-        }
-
-        break;
+      std::size_t dot_pos = domain.find(".");
+      if (dot_pos == std::string::npos) { break; }
+      domain = domain.substr(dot_pos + 1, domain.length() - dot_pos);
     }
-    if (p == NULL) {
-      fprintf(stderr, "client: failed to connect\n");
-      return -1;
-    }
-    inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
-    printf("client(%d): connecting to %s\n", sockfd, s);
-    freeaddrinfo(servinfo); // all done with this structure
 
-    return sockfd;
+    return -1;
   }
 
   std::string gen_http_request_data(std::string host, std::string path) {

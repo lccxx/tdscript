@@ -23,7 +23,6 @@
 
 #include <assert.h>
 #include <unistd.h>
-#include <netdb.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
 
@@ -43,6 +42,7 @@ namespace tdscript {
   extern std::unordered_map<std::int64_t, std::int64_t> players_message;
   extern std::unordered_map<std::int64_t, std::uint8_t> need_extend;
 
+  extern std::unordered_map<std::string, std::unordered_map<std::int32_t, std::string>> hosts;
   const double RECEIVE_TIMEOUT_S = 0.01;
   const double AUTHORIZE_TIMEOUT_S = 30;
   const int SOCKET_TIME_OUT_MS = 10;
@@ -96,7 +96,7 @@ namespace tdscript {
   };  // class Client
 
   void check_environment(const char *name);
-  void *get_in_addr(struct sockaddr *sa);
+  int connect_ip(int epollfd, std::int32_t af, std::string ip_addr, int port);
   int connect_host(int epollfd, std::string host, int port);
   std::string gen_http_request_data(std::string host, std::string path);
   bool xmlCheckEq(const xmlChar *a, const char *b);

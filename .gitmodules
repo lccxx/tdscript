@@ -10,3 +10,6 @@
 [submodule "lib/libxml2"]
 	path = lib/libxml2
 	url = https://github.com/lccxz/libxml2.git
+[submodule "lib/openssl"]
+	path = lib/openssl
+	url = https://github.com/lccxz/openssl.git
