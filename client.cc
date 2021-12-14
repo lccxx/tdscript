@@ -33,7 +33,7 @@ namespace tdscript {
   std::unordered_map<std::int64_t, std::uint8_t> need_extend;
 
   const std::unordered_map<std::string, std::string> KEY_PLAYERS = { { "KMM", "@JulienKM" } };
-  std::unordered_map<std::int64_t, std::vector<std::string>> at_list;
+  std::unordered_map<std::int64_t, std::vector<std::string>> at_list;  // the '@' list
   bool werewolf_bot_warning = false;
 
   SSL_CTX *ssl_ctx;
