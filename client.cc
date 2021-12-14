@@ -376,7 +376,7 @@ namespace tdscript {
     const std::regex starting_regex("游戏启动中");
     std::smatch starting_match;
     if (std::regex_search(text, starting_match, starting_regex)) {
-      for (const auto at : at_list[chat_id]) { send_text(chat_id, at); }
+      for (const auto at : at_list[chat_id]) { send_text(chat_id, at); }; at_list[chat_id].clear();
       for (const auto kv : STICKS_STARTING) { forward_message(chat_id, kv.first, kv.second); }
     }
 
@@ -445,7 +445,6 @@ namespace tdscript {
       last_extent_at[chat_id] = 0;
       players_message[chat_id] = 0;
       need_extend[chat_id] = 0;
-      at_list[chat_id].clear();
     }
   }
 
