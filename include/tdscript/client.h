@@ -1,4 +1,4 @@
-// created by lich 12/04/2021, no copyright
+// created by lccc 12/04/2021, no copyright
 
 #ifndef INCLUDE_TDSCRIPT_CLIENT_H_
 #define INCLUDE_TDSCRIPT_CLIENT_H_
