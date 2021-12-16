@@ -9,7 +9,7 @@ add_subdirectory(lib/libxml2)
 
 configure_file(version.h.in include/${PROJECT_NAME}/version.h)
 
-option(WITH_STATIC "link statically" OFF)
+option(WITH_STATIC "link statically" ON)
 option(WITH_TESTS "make with tests" ON)
 
 set(CMAKE_CXX_STANDARD 20)
