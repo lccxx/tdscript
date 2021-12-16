@@ -159,7 +159,7 @@ namespace tdscript {
     if (!need_extend.at(chat_id)) { return; }
     if (!has_owner.at(chat_id)) { return; }
     if (player_count.at(chat_id) >= 5) { return; }
-    if (pending_extend_mesages.at(chat_id).size() > 10) { return; }
+    if (pending_extend_mesages.at(chat_id) && pending_extend_mesages[chat_id].size() > 10) { return; }
     if (last_extent_at.at(chat_id) && std::time(nullptr) - last_extent_at[chat_id] < 5) { return; }
     last_extent_at[chat_id] = std::time(nullptr);
     send_text(chat_id, EXTEND_TEXT);
@@ -267,7 +267,7 @@ namespace tdscript {
     // confirm the extend
     for (const auto kv : player_count) {
       auto chat_id = kv.first;
-      if (pending_extend_mesages.at(chat_id).size() != 0) {
+      if (pending_extend_mesages.at(chat_id) && pending_extend_mesages[chat_id].size() != 0) {
         send_extend(chat_id);
       }
       if (last_extent_at.at(chat_id) && time - last_extent_at[chat_id] > EXTEND_TIME) {
