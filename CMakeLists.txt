@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.11)
 
 project(tdscript VERSION 0.1)
 
+set(BUILD_SHARED_LIBS OFF)
+
 add_subdirectory(lib/openssl)
 add_subdirectory(lib/td)
 add_subdirectory(lib/json)
