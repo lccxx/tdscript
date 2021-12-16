@@ -15,6 +15,7 @@ option(WITH_TESTS "make with tests" ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 
 SET(LIBRARIES Td::TdStatic ${OPENSSL_SSL_LIBRARY} nlohmann_json::nlohmann_json LibXml2)
 SET(INCLUDES include ${PROJECT_BINARY_DIR}/include ${OPENSSL_INCLUDE_DIR})
