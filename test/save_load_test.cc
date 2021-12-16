@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"
 
 
-TEST(RandomTest, Create) {
+TEST(RandomTest, Create) {  // NOLINT(cert-err58-cpp)
   EXPECT_EQ(1, 1) << "1 == 1";
   EXPECT_EQ("0.1", tdscript::VERSION) << "version";
 

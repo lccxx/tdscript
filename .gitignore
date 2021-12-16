@@ -1,5 +1,8 @@
 /build
 /build-release
+/cmake-build-debug
+/lib/install
 /.vscode
+/.idea
 /.directory
 *.log

@@ -2,28 +2,24 @@ cmake_minimum_required(VERSION 3.11)
 
 project(tdscript VERSION 0.1)
 
-add_subdirectory(lib/openssl)
-add_subdirectory(lib/td)
-add_subdirectory(lib/json)
-add_subdirectory(lib/libxml2)
+add_subdirectory(lib)
+
+find_package(Td REQUIRED NO_DEFAULT_PATH)
 
 configure_file(version.h.in include/${PROJECT_NAME}/version.h)
 
-option(WITH_STATIC "link statically" ON)
+option(WITH_STATIC "link statically" OFF)
 option(WITH_TESTS "make with tests" ON)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-set(LIBRARIES Td::TdStatic ${OPENSSL_SSL_LIBRARY} nlohmann_json::nlohmann_json LibXml2)
-set(INCLUDES include ${PROJECT_BINARY_DIR}/include ${OPENSSL_INCLUDE_DIR})
+set(LIBRARIES Td::TdStatic nlohmann_json::nlohmann_json LibXml2)
+set(INCLUDES include ${PROJECT_BINARY_DIR}/include)
 set(SOURCES client.cc)
 
-set(CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
-set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-
 add_executable(${PROJECT_NAME} ${SOURCES} example/main.cc)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARIES} "-static")
+target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARIES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${INCLUDES})
 
 if (WITH_TESTS)
