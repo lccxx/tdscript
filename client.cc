@@ -430,6 +430,8 @@ namespace tdscript {
     const std::regex remain_regex("还有 1 分钟|还剩 \\d+ 秒");
     std::smatch remain_match;
     if (std::regex_search(text, remain_match, remain_regex)) {
+      delete_messages(chat_id, pending_extend_mesages[chat_id]);
+      pending_extend_mesages[chat_id].clear();
       pending_extend_mesages[chat_id].push_back(msg_id);
     }
 
