@@ -327,9 +327,10 @@ void tdscript::Client::process_tasks(std::time_t time) {
         std::cout << "user_id: " << user_id << '\n';
         std::string text;
         if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
-          text = static_cast<td::td_api::messageText*>(msg->content_.get())->text_->text_;
+          auto content = static_cast<td::td_api::messageText*>(msg->content_.get());
+          text = content->text_->text_;
           player_ids[chat_id].clear();
-          for (const auto& entity : static_cast<td::td_api::messageText*>(msg->content_.get())->text_->entities_) {
+          for (const auto& entity : content->text_->entities_) {
             if (td::td_api::textEntityTypeMentionName::ID == entity->type_->get_id()) {
               auto* mention = (td::td_api::textEntityTypeMentionName*)(entity->type_.get());
               std::cout << "mention user_id: " << mention->user_id_ << '\n';
