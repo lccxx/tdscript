@@ -309,14 +309,12 @@ void tdscript::Client::process_tasks(std::time_t time) {
     auto msg_id = kv.second;
     if (time - last_extent_at[chat_id] > EXTEND_TIME / 2 && time % 7 == 0) {
       get_message(chat_id, msg_id, [this, chat_id](tdo_ptr update) {
-        std::cout << "start get mgs" << '\n';
-        auto msg = std::move(static_cast<td::td_api::updateNewMessage*>(update.get())->message_);
-        std::cout << "start get mgs -> sender -> user_id" << '\n';
+        auto msgs = std::move(static_cast<td::td_api::messages*>(update.get())->messages_);
+        if (msgs.size() != 1) { return; }
+        auto& msg = msgs[0];
         auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_id_.get())->user_id_;
         std::string text;
-        std::cout << "start get mgs -> content" << '\n';
         if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
-          std::cout << "start get mgs -> content -> text -> text" << '\n';
           text = static_cast<td::td_api::messageText*>(msg->content_.get())->text_->text_;
           player_ids[chat_id].clear();
           std::cout << "start get mgs -> content -> text -> entities" << '\n';
@@ -345,7 +343,6 @@ void tdscript::Client::process_response(td::ClientManager::Response response) {
   std::cout << "receive " << response.request_id << ": " << td::td_api::to_string(update) << '\n';
 
   if (response.request_id != 0) {
-    std::cout << "query_callbacks.size: " << query_callbacks.size() << ", request_id exists: " << query_callbacks.count(response.request_id) << '\n';
     if (query_callbacks.count(response.request_id) > 0) {
       query_callbacks[response.request_id](std::move(update));
       query_callbacks.erase(response.request_id);
