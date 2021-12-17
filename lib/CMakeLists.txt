@@ -4,21 +4,31 @@ project(tdscript_lib VERSION 0.1)
 
 add_subdirectory(openssl)
 
-# message(FATAL_ERROR ${ZLIB_LIBRARIES})
+if (WITH_STATIC)
+    set(ZLIB_LIBRARY "/usr/lib/libz.a")
+    set(OPENSSL_CRYPTO_LIBRARY "${PROJECT_SOURCE_DIR}/install/openssl/lib/libcrypto.a")
+    set(OPENSSL_SSL_LIBRARY "${PROJECT_SOURCE_DIR}/install/openssl/lib/libssl.a")
+    set(TD_BUILD_DIR "build_static")
+    set(TD_INSTALL_DIR "${PROJECT_SOURCE_DIR}/install/td_static")
+else()
+    set(ZLIB_LIBRARY "/usr/lib/libz.so")
+    set(OPENSSL_CRYPTO_LIBRARY "${PROJECT_SOURCE_DIR}/install/openssl/lib/libcrypto.so")
+    set(OPENSSL_SSL_LIBRARY "${PROJECT_SOURCE_DIR}/install/openssl/lib/libssl.so")
+    set(TD_BUILD_DIR "build")
+    set(TD_INSTALL_DIR "${PROJECT_SOURCE_DIR}/install/td")
+endif()
 
-if (NOT EXISTS "${PROJECT_SOURCE_DIR}/install/td/lib/libtdcore.a")
+if (NOT EXISTS "${TD_INSTALL_DIR}/lib/libtdcore.a")
     execute_process(
             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/td"
             COMMAND "cmake" "-DCMAKE_BUILD_TYPE=Release"
-                "-DCMAKE_FIND_LIBRARY_SUFFIXES=.a"
-                "-DZLIB_LIBRARY=/usr/lib/libz.a"
-                "-DOPENSSL_USE_STATIC_LIBS=TRUE"
+                "-DWITH_STATIC=${WITH_STATIC}"
+                "-DZLIB_LIBRARY=${ZLIB_LIBRARY}"
                 "-DOPENSSL_INCLUDE_DIR=${PROJECT_SOURCE_DIR}/install/openssl/include"
-                "-DOPENSSL_LIBRARIES=${PROJECT_SOURCE_DIR}/install/openssl/lib/*.a"
-                "-DOPENSSL_CRYPTO_LIBRARY=${PROJECT_SOURCE_DIR}/install/openssl/lib/libcrypto.a"
-                "-DOPENSSL_SSL_LIBRARY=${PROJECT_SOURCE_DIR}/install/openssl/lib/libssl.a"
-                "-DCMAKE_INSTALL_PREFIX=${PROJECT_SOURCE_DIR}/install/td"
-                "-S" "." "-B" "build"
+                "-DOPENSSL_CRYPTO_LIBRARY=${OPENSSL_CRYPTO_LIBRARY}"
+                "-DOPENSSL_SSL_LIBRARY=${OPENSSL_SSL_LIBRARY}"
+                "-DCMAKE_INSTALL_PREFIX=${TD_INSTALL_DIR}"
+                "-S" "." "-B" "${TD_BUILD_DIR}"
             RESULT_VARIABLE ret
     )
     if(${ret})
@@ -27,7 +37,7 @@ if (NOT EXISTS "${PROJECT_SOURCE_DIR}/install/td/lib/libtdcore.a")
 
     execute_process(
             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/td"
-            COMMAND "cmake" "--build" "build"
+            COMMAND "cmake" "--build" "${TD_BUILD_DIR}"
             RESULT_VARIABLE ret
     )
     if(${ret})
@@ -44,10 +54,12 @@ if (NOT EXISTS "${PROJECT_SOURCE_DIR}/install/td/lib/libtdcore.a")
     endif()
 endif()
 
-set(Td_DIR "${PROJECT_SOURCE_DIR}/install/td/lib/cmake/Td" PARENT_SCOPE)
+set(Td_DIR "${TD_INSTALL_DIR}/lib/cmake/Td" PARENT_SCOPE)
 
 add_subdirectory(json)
 
-set(BUILD_SHARED_LIBS OFF)
-set(LIBXML2_WITH_ZLIB OFF)
+if (WITH_STATIC)
+    set(BUILD_SHARED_LIBS OFF)
+    set(LIBXML2_WITH_ZLIB OFF)
+endif()
 add_subdirectory(libxml2)

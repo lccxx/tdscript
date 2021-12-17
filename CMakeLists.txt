@@ -14,16 +14,18 @@ option(WITH_TESTS "make with tests" ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-set(CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
-set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-
 set(LIBRARIES Td::TdStatic nlohmann_json::nlohmann_json LibXml2)
 set(INCLUDES include ${PROJECT_BINARY_DIR}/include)
 set(SOURCES client.cc)
 
-# check: readelf -d build/tdscript
+if (WITH_STATIC) # check: readelf -d build/tdscript
+  set(CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  set(LIBRARIES ${LIBRARIES} -static)
+endif()
+
 add_executable(${PROJECT_NAME} ${SOURCES} example/main.cc)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARIES} -static)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARIES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${INCLUDES})
 
 if (WITH_TESTS)

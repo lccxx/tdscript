@@ -54,6 +54,7 @@ namespace tdscript {
     std::unique_ptr<td::ClientManager> td_client_manager;
     std::int32_t client_id;
     std::uint64_t current_query_id = 0;
+    std::unordered_map<std::uint64_t, std::function<void(td::td_api::object_ptr<td::td_api::Object>)>> query_callbacks;
     bool authorized = false;
 
     int epollfd;
@@ -65,6 +66,7 @@ namespace tdscript {
     Client() : Client(0) {};
 
     void send_request(td::td_api::object_ptr<td::td_api::Function> f);
+    void send_request(td::td_api::object_ptr<td::td_api::Function> f, std::function<void(td::td_api::object_ptr<td::td_api::Object>)> callback);
     void send_parameters();
     void send_code();
     void send_password();
@@ -77,6 +79,7 @@ namespace tdscript {
     void send_extend(std::int64_t chat_id);
     void delete_messages(std::int64_t chat_id, std::vector<std::int64_t> message_ids);
     void get_message(std::int64_t chat_id, std::int64_t msg_id);
+    void get_message(std::int64_t chat_id, std::int64_t msg_id, std::function<void(td::td_api::object_ptr<td::td_api::Object>)> callback);
     void forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id);
     void send_http_request(const std::string& host, const std::string& path, std::function<void(std::string)> f);
     void send_https_request(const std::string& host, const std::string& path, const std::function<void(std::string)>& f);

@@ -15,9 +15,10 @@ namespace tdscript {
   const std::int32_t EXTEND_TIME = 123;
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ") + std::to_string(EXTEND_TIME);
   const std::vector<std::vector<std::int64_t>> STICKS_STARTING = {
-              { -681384622, 356104798208 },
-              { -1001098611371, 2753360297984, 2753361346560 } };
-  const std::unordered_map<std::int64_t, std::string> STICKS_REPLY = { { 2753361346560, "@TalkIce" } };
+              { -681384622, 356104798208 }, { -1001098611371, 2753360297984, 2753361346560 } };
+  const std::unordered_map<std::int64_t, std::int64_t> STICKS_REPLY_TO = { {2753361346560, 981032009 } };  // msg_id, user_id
+  const std::unordered_map<std::int64_t, std::string> KEY_PLAYER_IDS = { { 981032009, "@TalkIce" } };
+  const std::unordered_map<std::string, std::string> KEY_PLAYERS = { { "KMM", "@JulienKM" } };
 
   bool stop = false;
 
@@ -31,8 +32,8 @@ namespace tdscript {
   std::unordered_map<std::int64_t, std::int64_t> players_message;
   std::unordered_map<std::int64_t, std::uint8_t> need_extend;
 
-  const std::unordered_map<std::string, std::string> KEY_PLAYERS = { { "KMM", "@JulienKM" } };
   std::unordered_map<std::int64_t, std::vector<std::string>> at_list;  // the '@' list
+  std::unordered_map<std::int64_t, std::vector<std::int64_t>> player_ids;
   bool werewolf_bot_warning = false;
 
   const std::unordered_map<std::int32_t, std::string> AF_MAP = { { AF_INET, "IPv4" }, { AF_INET6, "IPv6"} };
@@ -71,8 +72,13 @@ tdscript::Client::Client(std::int32_t log_verbosity_level) {
 }
 
 void tdscript::Client::send_request(td::td_api::object_ptr<td::td_api::Function> f) {
+  send_request(std::move(f), [](td::td_api::object_ptr<td::td_api::Object> update){ });
+}
+
+void tdscript::Client::send_request(td::td_api::object_ptr<td::td_api::Function> f, std::function<void(td::td_api::object_ptr<td::td_api::Object>)> callback) {
   std::cout << "send " << (current_query_id + 1) << ": " << td::td_api::to_string(f) << std::endl;
   td_client_manager->send(client_id, current_query_id++, std::move(f));
+  query_callbacks[current_query_id] = std::move(callback);
 }
 
 void tdscript::Client::send_parameters() {
@@ -176,6 +182,12 @@ void tdscript::Client::get_message(std::int64_t chat_id, std::int64_t msg_id) {
   if (chat_id == 0 || msg_id == 0) { return; }
   std::vector<std::int64_t> message_ids = { msg_id };
   send_request(td::td_api::make_object<td::td_api::getMessages>(chat_id, std::move(message_ids)));
+}
+
+void tdscript::Client::get_message(std::int64_t chat_id, std::int64_t msg_id, std::function<void(td::td_api::object_ptr<td::td_api::Object>)> callback) {
+  if (chat_id == 0 || msg_id == 0) { return; }
+  std::vector<std::int64_t> message_ids = { msg_id };
+  send_request(td::td_api::make_object<td::td_api::getMessages>(chat_id, std::move(message_ids)), std::move(callback));
 }
 
 void tdscript::Client::forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id) {
@@ -339,6 +351,11 @@ void tdscript::Client::process_response(td::ClientManager::Response response) {
       process_message(std::move(msg));
     }
   }
+
+  if (response.request_id != 0) {
+    query_callbacks[response.request_id](std::move(update));
+    query_callbacks.erase(response.request_id);
+  }
 }
 
 void tdscript::Client::process_message(td::td_api::object_ptr<td::td_api::message> msg) {
@@ -383,10 +400,14 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
   if (std::regex_search(text, starting_match, starting_regex)) {
     for (const auto& at : at_list[chat_id]) { send_text(chat_id, at); } at_list[chat_id].clear();
     select_one_randomly(STICKS_STARTING, [this, chat_id](std::size_t i) {
-      forward_message(chat_id, STICKS_STARTING[i][0], STICKS_STARTING[i][1]);
-      if (STICKS_REPLY.count(STICKS_STARTING[i][2]) != 0) {
-        if (chat_id == STICKS_STARTING[i][0]) {
-          send_reply(chat_id, STICKS_STARTING[i][2], STICKS_REPLY.at(STICKS_STARTING[i][2]));
+      std::int64_t from_chat_id = STICKS_STARTING[i][0];
+      std::int64_t from_msg_id = STICKS_STARTING[i][1];
+      std::int64_t reply_msg_id = STICKS_STARTING[i][2];
+      std::int64_t reply_user_id = STICKS_REPLY_TO.at(reply_msg_id);
+      if (STICKS_REPLY_TO.count(reply_msg_id) != 0 && std::count(player_ids[chat_id].begin(), player_ids[chat_id].end(), reply_user_id)) {
+        forward_message(chat_id, from_chat_id, from_msg_id);
+        if (chat_id == from_chat_id && KEY_PLAYER_IDS.count(reply_user_id)) {
+          send_reply(chat_id, reply_msg_id, KEY_PLAYER_IDS.at(reply_user_id));
         }
       }
     });
@@ -420,6 +441,19 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
         }
       }
     }
+
+    get_message(chat_id, msg_id, [chat_id](auto update) {
+      auto msg = std::move(static_cast<td::td_api::updateNewMessage*>(update.get())->message_);
+      if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
+        player_ids[chat_id].clear();
+        for (const auto& entity : static_cast<td::td_api::messageText*>(msg->content_.get())->text_->entities_) {
+          if (td::td_api::textEntityTypeMentionName::ID == entity->type_->get_id()) {
+            auto* mention = (td::td_api::textEntityTypeMentionName*)(entity->type_.get());
+            player_ids[chat_id].push_back(mention->user_id_);
+          }
+        }
+      }
+    });
   }
 
   if (msg_id == players_message[chat_id]) {
