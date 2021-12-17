@@ -311,15 +311,18 @@ void tdscript::Client::process_tasks(std::time_t time) {
       get_message(chat_id, msg_id, [this, chat_id](tdo_ptr update) {
         td::td_api::message *msg = nullptr;
         if (td::td_api::messages::ID == update->get_id()) {
-          auto msgs = std::move(static_cast<td::td_api::messages *>(update.get())->messages_);
+          auto msgs = std::move(static_cast<td::td_api::messages*>(update.get())->messages_);
+          std::cout << "got some msgs, size: " << msgs.size() << '\n';
           if (msgs.size() != 1) { return; }
           msg = msgs[0].get();
         } else if (td::td_api::message::ID == update->get_id()) {
+          std::cout << "got a msg" << '\n';
           msg = static_cast<td::td_api::message*>(update.get());
         }
         if (msg == nullptr) {
           return;
         }
+        std::cout << "sure, got a msg" << '\n';
         auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_id_.get())->user_id_;
         std::string text;
         if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
