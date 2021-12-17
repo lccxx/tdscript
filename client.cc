@@ -324,6 +324,7 @@ void tdscript::Client::process_tasks(std::time_t time) {
         }
         std::cout << "sure, got a msg" << '\n';
         auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_id_.get())->user_id_;
+        std::cout << "user_id: " << user_id << '\n';
         std::string text;
         if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
           text = static_cast<td::td_api::messageText*>(msg->content_.get())->text_->text_;
@@ -332,6 +333,7 @@ void tdscript::Client::process_tasks(std::time_t time) {
           for (const auto& entity : entities) {
             if (td::td_api::textEntityTypeMentionName::ID == entity->type_->get_id()) {
               auto* mention = (td::td_api::textEntityTypeMentionName*)(entity->type_.get());
+              std::cout << "mention user_id: " << mention->user_id_ << '\n';
               player_ids[chat_id].push_back(mention->user_id_);
             }
           }
