@@ -14,12 +14,16 @@ option(WITH_TESTS "make with tests" ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+set(CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+set(ZLIB_LIBRARY /usr/lib/libz.a)
+
 set(LIBRARIES Td::TdStatic nlohmann_json::nlohmann_json LibXml2)
 set(INCLUDES include ${PROJECT_BINARY_DIR}/include)
 set(SOURCES client.cc)
 
 add_executable(${PROJECT_NAME} ${SOURCES} example/main.cc)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARIES} -static)
 target_include_directories(${PROJECT_NAME} PRIVATE ${INCLUDES})
 
 if (WITH_TESTS)
@@ -33,7 +37,7 @@ if (WITH_TESTS)
             "${PROJECT_NAME}_${test_target_name_dir}_${test_target_name_fn}")
 
     add_executable(${test_target_name} ${SOURCES} ${test_file})
-    target_link_libraries(${test_target_name} gtest gtest_main ${LIBRARIES})
+    target_link_libraries(${test_target_name} gtest gtest_main ${LIBRARIES} -static)
     target_include_directories(${test_target_name} PRIVATE ${INCLUDES})
 
     add_test(NAME ${test_target_name} COMMAND ${test_target_name})
