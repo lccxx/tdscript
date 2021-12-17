@@ -309,19 +309,24 @@ void tdscript::Client::process_tasks(std::time_t time) {
     auto msg_id = kv.second;
     if (time - last_extent_at[chat_id] > EXTEND_TIME / 2 && time % 7 == 0) {
       get_message(chat_id, msg_id, [this, chat_id](tdo_ptr update) {
-        auto msgs = std::move(static_cast<td::td_api::messages*>(update.get())->messages_);
-        if (msgs.size() != 1) { return; }
-        auto& msg = msgs[0];
+        td::td_api::message *msg = nullptr;
+        if (td::td_api::messages::ID == update->get_id()) {
+          auto msgs = std::move(static_cast<td::td_api::messages *>(update.get())->messages_);
+          if (msgs.size() != 1) { return; }
+          msg = msgs[0].get();
+        } else if (td::td_api::message::ID == update->get_id()) {
+          msg = static_cast<td::td_api::message*>(update.get());
+        }
+        if (msg == nullptr) {
+          return;
+        }
         auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_id_.get())->user_id_;
         std::string text;
         if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
           text = static_cast<td::td_api::messageText*>(msg->content_.get())->text_->text_;
           player_ids[chat_id].clear();
-          std::cout << "start get mgs -> content -> text -> entities" << '\n';
           auto entities = std::move(static_cast<td::td_api::messageText*>(msg->content_.get())->text_->entities_);
-          std::cout << "entities size: " << entities.size() << '\n';
           for (const auto& entity : entities) {
-            std::cout << "msg entity type: " << entity->type_->get_id() << ", textEntityTypeMentionName::ID: " << td::td_api::textEntityTypeMentionName::ID << '\n';
             if (td::td_api::textEntityTypeMentionName::ID == entity->type_->get_id()) {
               auto* mention = (td::td_api::textEntityTypeMentionName*)(entity->type_.get());
               player_ids[chat_id].push_back(mention->user_id_);
