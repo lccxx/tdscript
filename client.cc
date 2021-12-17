@@ -418,9 +418,9 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
                                        send_reply(chat_id, reply_msg_id, KEY_PLAYER_IDS.at(reply_user_id));
                                      });
             }
-            i = (i + 1) % STICKS_STARTING.size();
-            continue;
           }
+          i = (i + 1) % STICKS_STARTING.size();
+          continue;
         }
         return forward_message(chat_id, from_chat_id, from_msg_id);
       }
