@@ -385,7 +385,9 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
     select_one_randomly(STICKS_STARTING, [this, chat_id](std::size_t i) {
       forward_message(chat_id, STICKS_STARTING[i][0], STICKS_STARTING[i][1]);
       if (STICKS_REPLY.count(STICKS_STARTING[i][2]) != 0) {
-        send_reply(chat_id, STICKS_STARTING[i][2], STICKS_REPLY.at(STICKS_STARTING[i][2]));
+        if (chat_id == STICKS_STARTING[i][0]) {
+          send_reply(chat_id, STICKS_STARTING[i][2], STICKS_REPLY.at(STICKS_STARTING[i][2]));
+        }
       }
     });
   }
