@@ -170,7 +170,7 @@ void tdscript::Client::send_extend(std::int64_t chat_id) {
   if (!has_owner.at(chat_id)) { return; }
   if (player_count.at(chat_id) >= 5) { return; }
   if (pending_extend_mesages.count(chat_id) != 0 && pending_extend_mesages[chat_id].size() > 10) { return; }
-  if (last_extent_at.at(chat_id) && std::time(nullptr) - last_extent_at[chat_id] < 5) { return; }
+  if (last_extent_at.count(chat_id) > 0 && std::time(nullptr) - last_extent_at.at(chat_id) < 5) { return; }
   last_extent_at[chat_id] = std::time(nullptr);
   send_text(chat_id, EXTEND_TEXT);
 }
@@ -282,7 +282,7 @@ void tdscript::Client::process_tasks(std::time_t time) {
   }
   task_queue[time].clear();
 
-  // confirm the extend
+  // confirm the /extend
   for (const auto kv : player_count) {
     auto chat_id = kv.first;
     if (pending_extend_mesages.count(chat_id) != 0 && !pending_extend_mesages[chat_id].empty()) {
@@ -298,7 +298,23 @@ void tdscript::Client::process_tasks(std::time_t time) {
     auto chat_id = kv.first;
     auto msg_id = kv.second;
     if (time - last_extent_at[chat_id] > EXTEND_TIME / 2 && time % 7 == 0) {
-      get_message(chat_id, msg_id);
+      get_message(chat_id, msg_id, [this, chat_id](tdo_ptr update) {
+        auto msg = std::move(static_cast<td::td_api::updateNewMessage*>(update.get())->message_);
+        auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_id_.get())->user_id_;
+        std::string text;
+        if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
+          text = static_cast<td::td_api::messageText*>(msg->content_.get())->text_->text_;
+          player_ids[chat_id].clear();
+          for (const auto& entity : static_cast<td::td_api::messageText*>(msg->content_.get())->text_->entities_) {
+            if (td::td_api::textEntityTypeMentionName::ID == entity->type_->get_id()) {
+              auto* mention = (td::td_api::textEntityTypeMentionName*)(entity->type_.get());
+              player_ids[chat_id].push_back(mention->user_id_);
+            }
+          }
+        }
+
+        process_player_count(chat_id, msg->id_, user_id, text);
+      });
     }
   }
 
@@ -309,6 +325,12 @@ void tdscript::Client::process_response(td::ClientManager::Response response) {
   if (!response.object) { return; }
   auto update = std::move(response.object);
   std::cout << "receive " << response.request_id << ": " << td::td_api::to_string(update) << std::endl;
+
+  if (response.request_id != 0) {
+    query_callbacks[response.request_id](std::move(update));
+    query_callbacks.erase(response.request_id);
+    return;
+  }
 
   if (td::td_api::updateAuthorizationState::ID == update->get_id()) {
     auto state_id = static_cast<td::td_api::updateAuthorizationState*>(update.get())->authorization_state_->get_id();
@@ -348,18 +370,6 @@ void tdscript::Client::process_response(td::ClientManager::Response response) {
       auto text = static_cast<td::td_api::messageText*>(umsg->new_content_.get())->text_->text_;
       process_message(chat_id, msg_id, 0, text, "");
     }
-  }
-
-  if (td::td_api::messages::ID == update->get_id()) {  // from get_message
-    auto msgs = std::move(static_cast<td::td_api::messages*>(update.get())->messages_);
-    for (auto & msg : msgs) {
-      process_message(std::move(msg));
-    }
-  }
-
-  if (response.request_id != 0) {
-    query_callbacks[response.request_id](std::move(update));
-    query_callbacks.erase(response.request_id);
   }
 }
 
@@ -414,9 +424,9 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
           if (std::count(player_ids[chat_id].begin(), player_ids[chat_id].end(), reply_user_id)) {
             if (chat_id == from_chat_id && KEY_PLAYER_IDS.count(reply_user_id)) {
               return forward_message(chat_id, from_chat_id, from_msg_id,
-                                     [this, chat_id, reply_msg_id, reply_user_id](tdo_ptr update) {
-                                       send_reply(chat_id, reply_msg_id, KEY_PLAYER_IDS.at(reply_user_id));
-                                     });
+              [this, chat_id, reply_msg_id, reply_user_id](tdo_ptr update) {
+                send_reply(chat_id, reply_msg_id, KEY_PLAYER_IDS.at(reply_user_id));
+              });
             }
           }
           i = (i + 1) % STICKS_STARTING.size();
@@ -436,47 +446,7 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
     task_queue[std::time(nullptr) + 99].push_back([]() { werewolf_bot_warning = false; });
   }
 
-  const std::regex players_regex("^#players: (\\d+)");
-  std::smatch players_match;
-  if (std::regex_search(text, players_match, players_regex)) {
-    player_count[chat_id] = std::stoi(players_match[1]);
-
-    if (user_id && msg_id) {
-      if (players_message[chat_id] != msg_id) {
-        last_extent_at[chat_id] = std::time(nullptr);
-      }
-      players_message[chat_id] = msg_id;
-    }
-
-    for (const auto& player : KEY_PLAYERS) {
-      if (text.find(player.first) != std::string::npos) {
-        if (std::find(at_list[chat_id].begin(), at_list[chat_id].end(), player.second) == at_list[chat_id].end()) {
-          at_list[chat_id].push_back(player.second);
-        }
-      }
-    }
-
-    get_message(chat_id, msg_id, [chat_id](auto update) {
-      auto msg = std::move(static_cast<td::td_api::updateNewMessage*>(update.get())->message_);
-      if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
-        player_ids[chat_id].clear();
-        for (const auto& entity : static_cast<td::td_api::messageText*>(msg->content_.get())->text_->entities_) {
-          if (td::td_api::textEntityTypeMentionName::ID == entity->type_->get_id()) {
-            auto* mention = (td::td_api::textEntityTypeMentionName*)(entity->type_.get());
-            player_ids[chat_id].push_back(mention->user_id_);
-          }
-        }
-      }
-    });
-  }
-
-  if (msg_id == players_message[chat_id]) {
-    const std::regex owner_regex("lccc");
-    std::smatch owner_match;
-    if (std::regex_search(text, owner_match, owner_regex)) {
-      has_owner[chat_id] = 1;
-    }
-  }
+  process_player_count(chat_id, msg_id, user_id, text);
 
   if (user_id && !link.empty()) {
     need_extend[chat_id] = 1;
@@ -509,6 +479,38 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
     last_extent_at[chat_id] = 0;
     players_message[chat_id] = 0;
     need_extend[chat_id] = 0;
+  }
+}
+
+void tdscript::Client::process_player_count(  // NOLINT(readability-convert-member-functions-to-static)
+    std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text) {
+  const std::regex players_regex("^#players: (\\d+)");
+  std::smatch players_match;
+  if (std::regex_search(text, players_match, players_regex)) {
+    player_count[chat_id] = std::stoi(players_match[1]);
+
+    if (user_id && msg_id) {
+      if (players_message[chat_id] != msg_id) {
+        last_extent_at[chat_id] = std::time(nullptr);
+      }
+      players_message[chat_id] = msg_id;
+    }
+  }
+
+  if (players_message.count(chat_id) > 0 && msg_id == players_message.at(chat_id)) {
+    const std::regex owner_regex("lccc");
+    std::smatch owner_match;
+    if (std::regex_search(text, owner_match, owner_regex)) {
+      has_owner[chat_id] = 1;
+    }
+  }
+
+  for (const auto& player : KEY_PLAYERS) {
+    if (text.find(player.first) != std::string::npos) {
+      if (std::count(at_list[chat_id].begin(), at_list[chat_id].end(), player.second) == 0) {
+        at_list[chat_id].push_back(player.second);
+      }
+    }
   }
 }
 
