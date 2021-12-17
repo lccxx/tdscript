@@ -311,21 +311,13 @@ void tdscript::Client::process_tasks(std::time_t time) {
       get_message(chat_id, msg_id, [this, chat_id](tdo_ptr update) {
         if (td::td_api::messages::ID == update->get_id()) {
           auto& msgs = static_cast<td::td_api::messages*>(update.get())->messages_;
-          std::cout << "got some msgs, size: " << msgs.size() << '\n';
           if (msgs.size() != 1) { return; }
-          auto user_id = static_cast<td::td_api::messageSenderUser*>(msgs[0]->sender_id_.get())->user_id_;
-          std::cout << "user_id: " << user_id << '\n';
-          std::string text;
           if (td::td_api::messageText::ID == msgs[0]->content_->get_id()) {
-            std::cout << "get msg content" << '\n';
             auto& entities = static_cast<td::td_api::messageText*>(msgs[0]->content_.get())->text_->entities_;
             player_ids[chat_id].clear();
             for (auto& entity : entities) {
-              std::cout << "msg entity type " << entity->get_id() << ", textEntityTypeMentionName: " << td::td_api::textEntityTypeMentionName::ID << '\n';
               if (td::td_api::textEntityTypeMentionName::ID == entity->type_->get_id()) {
-                std::cout << "get mention entity user_id" << '\n';
                 std::int64_t mention_id = static_cast<td::td_api::textEntityTypeMentionName*>(entity->type_.get())->user_id_;
-                std::cout << "mention user_id: " << mention_id << '\n';
                 player_ids[chat_id].push_back(mention_id);
               }
             }
