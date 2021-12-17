@@ -16,12 +16,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-set(ZLIB_LIBRARY /usr/lib/libz.a)
 
 set(LIBRARIES Td::TdStatic nlohmann_json::nlohmann_json LibXml2)
 set(INCLUDES include ${PROJECT_BINARY_DIR}/include)
 set(SOURCES client.cc)
 
+# check: readelf -d build/tdscript
 add_executable(${PROJECT_NAME} ${SOURCES} example/main.cc)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARIES} -static)
 target_include_directories(${PROJECT_NAME} PRIVATE ${INCLUDES})

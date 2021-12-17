@@ -26,7 +26,7 @@
 #include <sys/epoll.h>
 
 namespace tdscript {
-  const std::string VERSION = std::to_string(TDSCRIPT_VERSION_MAJOR) + std::string(".") + std::to_string(TDSCRIPT_VERSION_MINOR); // NOLINT(cert-err58-cpp)
+  const std::string VERSION = std::to_string(TDSCRIPT_VERSION_MAJOR) + std::string(".") + std::to_string(TDSCRIPT_VERSION_MINOR);
 
   extern bool stop;
 
@@ -46,7 +46,7 @@ namespace tdscript {
   constexpr int MAX_EVENTS = 1;
   constexpr size_t HTTP_BUFFER_SIZE = 8192;
 
-  const std::vector<std::string> HEX_CODES = {  // NOLINT(cert-err58-cpp)
+  const std::vector<std::string> HEX_CODES = {
           "0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F" };
 
   class Client {
@@ -71,6 +71,7 @@ namespace tdscript {
     void send_text(std::int64_t chat_id, std::string text);
     void send_text(std::int64_t chat_id, std::string text, bool no_link_preview);
     void send_text(std::int64_t chat_id, std::int64_t reply_id, std::string text, bool no_link_preview);
+    void send_reply(std::int64_t chat_id, std::int64_t reply_id, std::string text);
     void send_start(std::int64_t chat_id, std::int64_t bot_id, const std::string& link);
     void send_start(std::int64_t chat_id, std::int64_t bot_id, const std::string& link, int limit);
     void send_extend(std::int64_t chat_id);
@@ -95,13 +96,14 @@ namespace tdscript {
 
   void quit(int signum);
   void check_environment(const char *name);
+  template<typename T> void select_one_randomly(const std::vector<T>&, const std::function<void(std::size_t)>&);
   int connect_ip(int epollfd, std::int32_t af, const std::string& ip_addr, int port);
   int connect_host(int epollfd, std::string host, int port);
   std::string gen_http_request_data(const std::string& host, const std::string& path);
   bool xmlCheckEq(const xmlChar *a, const char *b);
   std::string xmlNodeGetContentStr(const xmlNode *node);
-  template <typename Tk, typename Tv> std::string m2s(std::unordered_map<Tk, Tv> map);
-  template <typename Tk, class Tv> std::string ma2s(std::unordered_map<Tk, Tv> map);
+  template<typename Tk, typename Tv> std::string m2s(std::unordered_map<Tk, Tv> map);
+  template<typename Tk, class Tv> std::string ma2s(std::unordered_map<Tk, Tv> map);
   std::string urlencode(const std::string& s);
   std::string char_to_hex(char c);
   void save();

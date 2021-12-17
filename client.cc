@@ -13,12 +13,15 @@
 namespace tdscript {
   const std::int64_t USER_ID_WEREWOLF = 175844556;
   const std::int32_t EXTEND_TIME = 123;
-  const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ") + std::to_string(EXTEND_TIME);  // NOLINT(cert-err58-cpp)
-  const std::unordered_map<std::int64_t, std::int64_t> STICKS_STARTING = { { -681384622, 356104798208 } };  // NOLINT(cert-err58-cpp)
+  const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ") + std::to_string(EXTEND_TIME);
+  const std::vector<std::vector<std::int64_t>> STICKS_STARTING = {
+              { -681384622, 356104798208 },
+              { -1001098611371, 2753360297984, 2753361346560 } };
+  const std::unordered_map<std::int64_t, std::string> STICKS_REPLY = { { 2753361346560, "@TalkIce" } };
 
   bool stop = false;
 
-  const std::string SAVE_FILENAME = std::string(std::getenv("HOME")) + std::string("/.tdscript.save");  // NOLINT(cert-err58-cpp)
+  const std::string SAVE_FILENAME = std::string(std::getenv("HOME")) + std::string("/.tdscript.save");
   bool save_flag = false;
   bool data_ready = false;
   std::unordered_map<std::int64_t, std::int32_t> player_count;
@@ -28,12 +31,12 @@ namespace tdscript {
   std::unordered_map<std::int64_t, std::int64_t> players_message;
   std::unordered_map<std::int64_t, std::uint8_t> need_extend;
 
-  const std::unordered_map<std::string, std::string> KEY_PLAYERS = { { "KMM", "@JulienKM" } };  // NOLINT(cert-err58-cpp)
+  const std::unordered_map<std::string, std::string> KEY_PLAYERS = { { "KMM", "@JulienKM" } };
   std::unordered_map<std::int64_t, std::vector<std::string>> at_list;  // the '@' list
   bool werewolf_bot_warning = false;
 
-  const std::unordered_map<std::int32_t, std::string> AF_MAP = { { AF_INET, "IPv4" }, { AF_INET6, "IPv6"} };  // NOLINT(cert-err58-cpp)
-  std::unordered_map<std::string, std::unordered_map<std::int32_t, std::string>> hosts = {  // NOLINT(cert-err58-cpp)
+  const std::unordered_map<std::int32_t, std::string> AF_MAP = { { AF_INET, "IPv4" }, { AF_INET6, "IPv6"} };
+  std::unordered_map<std::string, std::unordered_map<std::int32_t, std::string>> hosts = {
     { "wikipedia.org", { { AF_INET, "103.102.166.224" }, { AF_INET6, "2001:df2:e500:ed1a::1" } } }
   };
   SSL_CTX *ssl_ctx;
@@ -118,6 +121,10 @@ void tdscript::Client::send_text(std::int64_t chat_id, std::int64_t reply_id, st
   message_content->disable_web_page_preview_ = no_link_preview;
   send_message->input_message_content_ = std::move(message_content);
   send_request(std::move(send_message));
+}
+
+void tdscript::Client::send_reply(std::int64_t chat_id, std::int64_t reply_id, std::string text) {
+  send_text(chat_id, reply_id, std::move(text), false);
 }
 
 void tdscript::Client::send_start(std::int64_t chat_id, std::int64_t bot_id, const std::string& link) {
@@ -375,7 +382,12 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
   std::smatch starting_match;
   if (std::regex_search(text, starting_match, starting_regex)) {
     for (const auto& at : at_list[chat_id]) { send_text(chat_id, at); } at_list[chat_id].clear();
-    for (const auto& kv : STICKS_STARTING) { forward_message(chat_id, kv.first, kv.second); }
+    select_one_randomly(STICKS_STARTING, [this, chat_id](std::size_t i) {
+      forward_message(chat_id, STICKS_STARTING[i][0], STICKS_STARTING[i][1]);
+      if (STICKS_REPLY.count(STICKS_STARTING[i][2]) != 0) {
+        send_reply(chat_id, STICKS_STARTING[i][2], STICKS_REPLY.at(STICKS_STARTING[i][2]));
+      }
+    });
   }
 
   save_flag = true;
@@ -649,6 +661,11 @@ void tdscript::check_environment(const char *name) {
   }
 }
 
+template<typename T>
+void tdscript::select_one_randomly(const std::vector<T>& arr, const std::function<void(std::size_t)>& f) {
+  if (!arr.empty()) { f(rand() % arr.size()); }  // NOLINT(cert-msc50-cpp)
+}
+
 int tdscript::connect_ip(int epollfd, std::int32_t af, const std::string& ip_addr, int port) {
   int sockfd = -1;
   if ((sockfd = socket(af, SOCK_STREAM, IPPROTO_TCP)) == -1) {
@@ -747,7 +764,7 @@ std::string tdscript::xmlNodeGetContentStr(const xmlNode *node) {
   return content.str();
 }
 
-template <typename Tk, typename Tv>
+template<typename Tk, typename Tv>
 std::string tdscript::m2s(std::unordered_map<Tk, Tv> map) {
   std::string line;
   for (const auto e : map) {
@@ -756,7 +773,7 @@ std::string tdscript::m2s(std::unordered_map<Tk, Tv> map) {
   return line;
 }
 
-template <typename Tk, class Tv>
+template<typename Tk, class Tv>
 std::string tdscript::ma2s(std::unordered_map<Tk, Tv> map) {
   std::string line;
   for (const auto e : map) {
