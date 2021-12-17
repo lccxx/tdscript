@@ -85,6 +85,7 @@ namespace tdscript {
     void get_message(std::int64_t chat_id, std::int64_t msg_id, std::function<void(tdo_ptr)> callback);
     void forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id);
     void forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id, std::function<void(tdo_ptr)> callback);
+    void forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id, bool copy, std::function<void(tdo_ptr)> callback);
     void send_http_request(const std::string& host, const std::string& path, std::function<void(std::string)> f);
     void send_https_request(const std::string& host, const std::string& path, const std::function<void(std::string)>& f);
 

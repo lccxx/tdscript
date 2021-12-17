@@ -16,7 +16,13 @@ namespace tdscript {
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ") + std::to_string(EXTEND_TIME);
   const std::vector<std::vector<std::int64_t>> STICKS_STARTING = {
       { -681384622, 357654593536 }, { -681384622, 357655642112 }, { -681384622, 356104798208 },
-      { -1001098611371, 2753360297984, 2753361346560 } };
+      { -1001098611371, 2753360297984, 2753361346560 },
+      { 981032009, 357662982144, 2753361346560 },
+      { 981032009, 357661933568, 2753361346560 },
+      { 981032009, 357660884992, 2753361346560 },
+      { 981032009, 357659836416, 2753361346560 },
+      { 981032009, 357658787840, 2753361346560 },
+  };
   const std::unordered_map<std::int64_t, std::int64_t> STICKS_REPLY_TO = { {2753361346560, 981032009 } };  // msg_id, user_id
   const std::unordered_map<std::int64_t, std::string> KEY_PLAYER_IDS = { { 981032009, "@TalkIce" } };
   const std::unordered_map<std::string, std::string> KEY_PLAYERS = { { "KMM", "@JulienKM" } };
@@ -196,11 +202,15 @@ void tdscript::Client::forward_message(std::int64_t chat_id, std::int64_t from_c
 }
 
 void tdscript::Client::forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id, std::function<void(tdo_ptr)> callback) {
+  forward_message(chat_id, from_chat_id, msg_id, true, std::move(callback));
+}
+
+void tdscript::Client::forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id, bool copy, std::function<void(tdo_ptr)> callback) {
   auto send_message = td::td_api::make_object<td::td_api::forwardMessages>();
   send_message->chat_id_ = chat_id;
   send_message->from_chat_id_ = from_chat_id;
   send_message->message_ids_ = { msg_id };
-  send_message->send_copy_ = true;
+  send_message->send_copy_ = copy;
   send_message->remove_caption_ = false;
   send_request(std::move(send_message), std::move(callback));
 }
@@ -423,7 +433,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
           std::int64_t reply_user_id = STICKS_REPLY_TO.at(reply_msg_id);
           if (std::count(player_ids[chat_id].begin(), player_ids[chat_id].end(), reply_user_id)) {
             if (chat_id == from_chat_id && KEY_PLAYER_IDS.count(reply_user_id)) {
-              return forward_message(chat_id, from_chat_id, from_msg_id,
+              return forward_message(chat_id, from_chat_id, from_msg_id, false,
               [this, chat_id, reply_msg_id, reply_user_id](tdo_ptr update) {
                 send_reply(chat_id, reply_msg_id, KEY_PLAYER_IDS.at(reply_user_id));
               });
