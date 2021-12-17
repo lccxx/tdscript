@@ -326,7 +326,7 @@ void tdscript::Client::process_tasks(std::time_t time) {
         auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_id_.get())->user_id_;
         std::cout << "user_id: " << user_id << '\n';
         std::string text;
-        if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
+        if (td::td_api::messageText::ID == msg->content_->get_id()) {
           std::cout << "get msg content" << '\n';
           auto* content = (td::td_api::messageText*)(msg->content_.get());
           std::cout << "get msg content -> text -> entities, size: " << content->text_->entities_.size() << '\n';
