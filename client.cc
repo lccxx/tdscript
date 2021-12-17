@@ -309,41 +309,30 @@ void tdscript::Client::process_tasks(std::time_t time) {
     auto msg_id = kv.second;
     if (time - last_extent_at[chat_id] > EXTEND_TIME / 2 && time % 7 == 0) {
       get_message(chat_id, msg_id, [this, chat_id](tdo_ptr update) {
-        td::td_api::message *msg = nullptr;
         if (td::td_api::messages::ID == update->get_id()) {
-          auto msgs = std::move(static_cast<td::td_api::messages*>(update.get())->messages_);
+          auto& msgs = static_cast<td::td_api::messages*>(update.get())->messages_;
           std::cout << "got some msgs, size: " << msgs.size() << '\n';
           if (msgs.size() != 1) { return; }
-          msg = msgs[0].get();
-        } else if (td::td_api::message::ID == update->get_id()) {
-          std::cout << "got a msg" << '\n';
-          msg = static_cast<td::td_api::message*>(update.get());
-        }
-        if (msg == nullptr) {
-          return;
-        }
-        std::cout << "sure, got a msg" << '\n';
-        auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_id_.get())->user_id_;
-        std::cout << "user_id: " << user_id << '\n';
-        std::string text;
-        if (td::td_api::messageText::ID == msg->content_->get_id()) {
-          std::cout << "get msg content" << '\n';
-          auto* content = (td::td_api::messageText*)(msg->content_.get());
-          std::cout << "get msg content -> text -> entities, size: " << content->text_->entities_.size() << '\n';
-          text = content->text_->text_;
-          player_ids[chat_id].clear();
-          for (const auto& entity : content->text_->entities_) {
-            std::cout << "msg entity type " << entity->get_id() << ", textEntityTypeMentionName: " << td::td_api::textEntityTypeMentionName::ID << '\n';
-            if (td::td_api::textEntityTypeMentionName::ID == entity->type_->get_id()) {
-              std::cout << "get mention entity user_id" << '\n';
-              auto* mention = (td::td_api::textEntityTypeMentionName*)(entity->type_.get());
-              std::cout << "mention user_id: " << mention->user_id_ << '\n';
-              player_ids[chat_id].push_back(mention->user_id_);
+          auto user_id = static_cast<td::td_api::messageSenderUser*>(msgs[0]->sender_id_.get())->user_id_;
+          std::cout << "user_id: " << user_id << '\n';
+          std::string text;
+          if (td::td_api::messageText::ID == msgs[0]->content_->get_id()) {
+            std::cout << "get msg content" << '\n';
+            auto& entities = static_cast<td::td_api::messageText*>(msgs[0]->content_.get())->text_->entities_;
+            player_ids[chat_id].clear();
+            for (auto& entity : entities) {
+              std::cout << "msg entity type " << entity->get_id() << ", textEntityTypeMentionName: " << td::td_api::textEntityTypeMentionName::ID << '\n';
+              if (td::td_api::textEntityTypeMentionName::ID == entity->type_->get_id()) {
+                std::cout << "get mention entity user_id" << '\n';
+                std::int64_t mention_id = static_cast<td::td_api::textEntityTypeMentionName*>(entity->type_.get())->user_id_;
+                std::cout << "mention user_id: " << mention_id << '\n';
+                player_ids[chat_id].push_back(mention_id);
+              }
             }
+
+            process_message(std::move(msgs[0]));
           }
         }
-
-        process_player_count(chat_id, msg->id_, user_id, text);
       });
     }
   }
