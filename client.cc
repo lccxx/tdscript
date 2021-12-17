@@ -345,8 +345,10 @@ void tdscript::Client::process_response(td::ClientManager::Response response) {
   std::cout << "receive " << response.request_id << ": " << td::td_api::to_string(update) << std::endl;
 
   if (response.request_id != 0) {
-    query_callbacks[response.request_id](std::move(update));
-    // query_callbacks.erase(response.request_id);
+    if (query_callbacks.count(response.request_id) > 0) {
+      query_callbacks[response.request_id](std::move(update));
+      query_callbacks.erase(response.request_id);
+    }
     return;
   }
 
