@@ -342,9 +342,10 @@ void tdscript::Client::process_tasks(std::time_t time) {
 void tdscript::Client::process_response(td::ClientManager::Response response) {
   if (!response.object) { return; }
   auto update = std::move(response.object);
-  std::cout << "receive " << response.request_id << ": " << td::td_api::to_string(update) << std::endl;
+  std::cout << "receive " << response.request_id << ": " << td::td_api::to_string(update) << '\n';
 
   if (response.request_id != 0) {
+    std::cout << "query_callbacks.size: " << query_callbacks.size() << ", request_id exists: " << query_callbacks.count(response.request_id) << '\n';
     if (query_callbacks.count(response.request_id) > 0) {
       query_callbacks[response.request_id](std::move(update));
       query_callbacks.erase(response.request_id);
