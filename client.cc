@@ -316,6 +316,7 @@ void tdscript::Client::process_tasks(std::time_t time) {
           text = static_cast<td::td_api::messageText*>(msg->content_.get())->text_->text_;
           player_ids[chat_id].clear();
           for (const auto& entity : static_cast<td::td_api::messageText*>(msg->content_.get())->text_->entities_) {
+            std::cout << "msg entity type: " << entity->type_.get() << ", textEntityTypeMentionName::ID: " << td::td_api::textEntityTypeMentionName::ID << '\n';
             if (td::td_api::textEntityTypeMentionName::ID == entity->type_->get_id()) {
               auto* mention = (td::td_api::textEntityTypeMentionName*)(entity->type_.get());
               player_ids[chat_id].push_back(mention->user_id_);
@@ -456,12 +457,12 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
     task_queue[std::time(nullptr) + 99].push_back([]() { werewolf_bot_warning = false; });
   }
 
-  process_player_count(chat_id, msg_id, user_id, text);
-
   if (user_id && !link.empty()) {
     need_extend[chat_id] = 1;
     send_start(chat_id, user_id, link);
   }
+
+  process_player_count(chat_id, msg_id, user_id, text);
 
   const std::regex remain_regex("还有 1 分钟|还剩 \\d+ 秒");
   std::smatch remain_match;
