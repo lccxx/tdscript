@@ -94,7 +94,6 @@ namespace tdscript {
     void process_message(td::td_api::object_ptr<td::td_api::message> msg);
     void process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text, const std::string& link);
     void process_werewolf(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text, const std::string& link);
-    void process_player_count(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text);
     void process_wiki(std::int64_t chat_id, std::int64_t msg_id, const std::string& text);
     void process_wiki(std::int64_t chat_id, std::int64_t msg_id, const std::string& lang, const std::string& title);
     void process_socket_response(int event_id);

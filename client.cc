@@ -453,39 +453,6 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
     send_start(chat_id, user_id, link);
   }
 
-  process_player_count(chat_id, msg_id, user_id, text);
-
-  const std::regex remain_regex("还有 1 分钟|还剩 \\d+ 秒");
-  std::smatch remain_match;
-  if (std::regex_search(text, remain_match, remain_regex)) {
-    delete_messages(chat_id, pending_extend_messages[chat_id]);
-    pending_extend_messages[chat_id].clear();
-    pending_extend_messages[chat_id].push_back(msg_id);
-  }
-
-  const std::regex remain_reply_regex("现在又多了 123 秒时间");
-  std::smatch remain_reply_match;
-  if (std::regex_search(text, remain_reply_match, remain_reply_regex)) {
-    pending_extend_messages[chat_id].push_back(msg_id);
-    delete_messages(chat_id, pending_extend_messages[chat_id]);
-
-    pending_extend_messages[chat_id].clear();
-  }
-
-  const std::regex cancel_regex("游戏取消|目前没有进行中的游戏|游戏启动中|夜幕降临|第\\d+天");
-  std::smatch cancel_match;
-  if (std::regex_search(text, cancel_match, cancel_regex)) {
-    player_count[chat_id] = 0;
-    has_owner[chat_id] = 0;
-    pending_extend_messages[chat_id].clear();
-    last_extent_at[chat_id] = 0;
-    players_message[chat_id] = 0;
-    need_extend[chat_id] = 0;
-  }
-}
-
-void tdscript::Client::process_player_count(  // NOLINT(readability-convert-member-functions-to-static)
-    std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text) {
   const std::regex players_regex("^#players: (\\d+)");
   std::smatch players_match;
   if (std::regex_search(text, players_match, players_regex)) {
@@ -513,6 +480,33 @@ void tdscript::Client::process_player_count(  // NOLINT(readability-convert-memb
         at_list[chat_id].push_back(player.second);
       }
     }
+  }
+
+  const std::regex remain_regex("还有 1 分钟|还剩 \\d+ 秒");
+  std::smatch remain_match;
+  if (std::regex_search(text, remain_match, remain_regex)) {
+    delete_messages(chat_id, pending_extend_messages[chat_id]);
+    pending_extend_messages[chat_id].clear();
+    pending_extend_messages[chat_id].push_back(msg_id);
+  }
+
+  const std::regex remain_reply_regex("现在又多了 123 秒时间");
+  std::smatch remain_reply_match;
+  if (std::regex_search(text, remain_reply_match, remain_reply_regex)) {
+    pending_extend_messages[chat_id].push_back(msg_id);
+    delete_messages(chat_id, pending_extend_messages[chat_id]);
+    pending_extend_messages[chat_id].clear();
+  }
+
+  const std::regex cancel_regex("游戏取消|目前没有进行中的游戏|游戏启动中|夜幕降临|第\\d+天");
+  std::smatch cancel_match;
+  if (std::regex_search(text, cancel_match, cancel_regex)) {
+    player_count[chat_id] = 0;
+    has_owner[chat_id] = 0;
+    pending_extend_messages[chat_id].clear();
+    last_extent_at[chat_id] = 0;
+    players_message[chat_id] = 0;
+    need_extend[chat_id] = 0;
   }
 }
 
