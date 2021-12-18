@@ -10,7 +10,7 @@ TEST(RandomTest, Create) {  // NOLINT(cert-err58-cpp)
   EXPECT_EQ(1, 1) << "1 == 1";
   EXPECT_EQ("0.1", tdscript::VERSION) << "version";
 
-  ASSERT_EQ("Flag+of+Cimi%C8%99lia", tdscript::urlencode("Flag of Cimișlia"));
+  ASSERT_EQ("abc+123+%E4%B8%AD%E6%96%87", tdscript::urlencode("abc 123 中文"));
 
   auto client = tdscript::Client(0);
 

@@ -366,11 +366,11 @@ void tdscript::Client::process_response(td::ClientManager::Response response) {
   }
 
   if (td::td_api::updateMessageContent::ID == update->get_id()) {
-    auto umsg = static_cast<td::td_api::updateMessageContent*>(update.get());
-    auto msg_id = umsg->message_id_;
-    auto chat_id = umsg->chat_id_;
-    if (td::td_api::messageText::ID == umsg->new_content_->get_id()) {
-      auto text = static_cast<td::td_api::messageText*>(umsg->new_content_.get())->text_->text_;
+    auto msg = static_cast<td::td_api::updateMessageContent*>(update.get());
+    auto msg_id = msg->message_id_;
+    auto chat_id = msg->chat_id_;
+    if (td::td_api::messageText::ID == msg->new_content_->get_id()) {
+      auto text = static_cast<td::td_api::messageText*>(msg->new_content_.get())->text_->text_;
       process_message(chat_id, msg_id, 0, text, "");
     }
   }
