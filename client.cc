@@ -185,12 +185,6 @@ void tdscript::Client::delete_messages(std::int64_t chat_id, std::vector<std::in
   send_request(td::td_api::make_object<td::td_api::deleteMessages>(chat_id, std::move(message_ids), true));
 }
 
-void tdscript::Client::get_message(std::int64_t chat_id, std::int64_t msg_id) {
-  if (chat_id == 0 || msg_id == 0) { return; }
-  std::vector<std::int64_t> message_ids = { msg_id };
-  send_request(td::td_api::make_object<td::td_api::getMessages>(chat_id, std::move(message_ids)));
-}
-
 void tdscript::Client::get_message(std::int64_t chat_id, std::int64_t msg_id, std::function<void(tdo_ptr)> callback) {
   if (chat_id == 0 || msg_id == 0) { return; }
   std::vector<std::int64_t> message_ids = { msg_id };
