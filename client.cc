@@ -435,7 +435,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
           std::int64_t reply_msg_id = STICKS_STARTING[i][2];
           std::int64_t reply_user_id = STICKS_REPLY_TO.at(reply_msg_id);
           if (std::count(player_ids[chat_id].begin(), player_ids[chat_id].end(), reply_user_id)) {
-            if (chat_id == from_chat_id && KEY_PLAYER_IDS.count(reply_user_id)) {
+            if (KEY_PLAYER_IDS.count(reply_user_id)) {
               return forward_message(chat_id, from_chat_id, from_msg_id, false,
               [this, chat_id, reply_msg_id, reply_user_id](tdo_ptr update) {
                 send_reply(chat_id, reply_msg_id, KEY_PLAYER_IDS.at(reply_user_id));
