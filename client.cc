@@ -198,25 +198,17 @@ void tdscript::Client::get_message(std::int64_t chat_id, std::int64_t msg_id, st
 }
 
 void tdscript::Client::forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id) {
-  forward_message(chat_id, from_chat_id, msg_id, true, [](tdo_ptr update) { });
+  forward_message(chat_id, from_chat_id, msg_id, true);
 }
 
 void tdscript::Client::forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id, bool copy) {
-  forward_message(chat_id, from_chat_id, msg_id, copy, [](tdo_ptr update) { });
-}
-
-void tdscript::Client::forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id, std::function<void(tdo_ptr)> callback) {
-  forward_message(chat_id, from_chat_id, msg_id, true, std::move(callback));
-}
-
-void tdscript::Client::forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id, bool copy, std::function<void(tdo_ptr)> callback) {
   auto send_message = td::td_api::make_object<td::td_api::forwardMessages>();
   send_message->chat_id_ = chat_id;
   send_message->from_chat_id_ = from_chat_id;
   send_message->message_ids_ = { msg_id };
   send_message->send_copy_ = copy;
   send_message->remove_caption_ = false;
-  send_request(std::move(send_message), std::move(callback));
+  send_request(std::move(send_message));
 }
 
 void tdscript::Client::send_http_request(const std::string& host, const std::string& path, std::function<void(std::string)> f) {
@@ -433,6 +425,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
     for (const auto& at : at_list[chat_id]) { send_text(chat_id, at); } at_list[chat_id].clear();
     select_one_randomly(STICKS_STARTING, [this, chat_id](std::size_t i) {
       while (true) {
+        std::cout << "selected stick, number: " << i << '\n';
         std::int64_t from_chat_id = STICKS_STARTING[i][0];
         std::int64_t from_msg_id = STICKS_STARTING[i][1];
         if (STICKS_STARTING[i].size() > 2) {
