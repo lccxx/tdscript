@@ -34,7 +34,7 @@ namespace tdscript {
   extern bool data_ready;
   extern std::unordered_map<std::int64_t, std::int32_t> player_count;
   extern std::unordered_map<std::int64_t, std::uint8_t> has_owner;
-  extern std::unordered_map<std::int64_t, std::vector<std::int64_t>> pending_extend_mesages;
+  extern std::unordered_map<std::int64_t, std::vector<std::int64_t>> pending_extend_messages;
   extern std::unordered_map<std::int64_t, std::uint64_t> last_extent_at;
   extern std::unordered_map<std::int64_t, std::int64_t> players_message;
   extern std::unordered_map<std::int64_t, std::uint8_t> need_extend;

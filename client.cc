@@ -34,7 +34,7 @@ namespace tdscript {
   bool data_ready = false;
   std::unordered_map<std::int64_t, std::int32_t> player_count;
   std::unordered_map<std::int64_t, std::uint8_t> has_owner;
-  std::unordered_map<std::int64_t, std::vector<std::int64_t>> pending_extend_mesages;
+  std::unordered_map<std::int64_t, std::vector<std::int64_t>> pending_extend_messages;
   std::unordered_map<std::int64_t, std::uint64_t> last_extent_at;
   std::unordered_map<std::int64_t, std::int64_t> players_message;
   std::unordered_map<std::int64_t, std::uint8_t> need_extend;
@@ -58,7 +58,7 @@ tdscript::Client::Client(std::int32_t log_verbosity_level) {
   check_environment("TG_API_ID");
   check_environment("TG_API_HASH");
   check_environment("TG_DB_ENCRYPTION_KEY");
-  check_environment("TG_PHOME_NUMBER");
+  check_environment("TG_PHONE_NUMBER");
 
   signal(SIGINT, quit);
   signal(SIGTERM, quit);
@@ -175,7 +175,7 @@ void tdscript::Client::send_extend(std::int64_t chat_id) {
   if (!need_extend.at(chat_id)) { return; }
   if (!has_owner.at(chat_id)) { return; }
   if (player_count.at(chat_id) >= 5) { return; }
-  if (pending_extend_mesages.count(chat_id) != 0 && pending_extend_mesages[chat_id].size() > 10) { return; }
+  if (pending_extend_messages.count(chat_id) != 0 && pending_extend_messages[chat_id].size() > 10) { return; }
   if (last_extent_at.count(chat_id) > 0 && std::time(nullptr) - last_extent_at.at(chat_id) < 5) { return; }
   last_extent_at[chat_id] = std::time(nullptr);
   send_text(chat_id, EXTEND_TEXT);
@@ -285,7 +285,7 @@ void tdscript::Client::process_tasks(std::time_t time) {
   // confirm the /extend
   for (const auto kv : player_count) {
     auto chat_id = kv.first;
-    if (pending_extend_mesages.count(chat_id) != 0 && !pending_extend_mesages[chat_id].empty()) {
+    if (pending_extend_messages.count(chat_id) != 0 && !pending_extend_messages[chat_id].empty()) {
       send_extend(chat_id);
     }
     if (last_extent_at.at(chat_id) && time - last_extent_at[chat_id] > EXTEND_TIME) {
@@ -348,7 +348,7 @@ void tdscript::Client::process_response(td::ClientManager::Response response) {
         send_request(td::td_api::make_object<td::td_api::checkDatabaseEncryptionKey>(std::getenv("TG_DB_ENCRYPTION_KEY")));
         break;
       case td::td_api::authorizationStateWaitPhoneNumber::ID:
-        send_request(td::td_api::make_object<td::td_api::setAuthenticationPhoneNumber>(std::getenv("TG_PHOME_NUMBER"), nullptr));
+        send_request(td::td_api::make_object<td::td_api::setAuthenticationPhoneNumber>(std::getenv("TG_PHONE_NUMBER"), nullptr));
         break;
       case td::td_api::authorizationStateWaitCode::ID:
         send_code();
@@ -410,7 +410,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
   process_wiki(chat_id, msg_id, text);
 
   if (text == EXTEND_TEXT) {
-    pending_extend_mesages[chat_id].push_back(msg_id);
+    pending_extend_messages[chat_id].push_back(msg_id);
   }
 
   const std::regex starting_regex("游戏启动中");
@@ -458,18 +458,18 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
   const std::regex remain_regex("还有 1 分钟|还剩 \\d+ 秒");
   std::smatch remain_match;
   if (std::regex_search(text, remain_match, remain_regex)) {
-    delete_messages(chat_id, pending_extend_mesages[chat_id]);
-    pending_extend_mesages[chat_id].clear();
-    pending_extend_mesages[chat_id].push_back(msg_id);
+    delete_messages(chat_id, pending_extend_messages[chat_id]);
+    pending_extend_messages[chat_id].clear();
+    pending_extend_messages[chat_id].push_back(msg_id);
   }
 
   const std::regex remain_reply_regex("现在又多了 123 秒时间");
   std::smatch remain_reply_match;
   if (std::regex_search(text, remain_reply_match, remain_reply_regex)) {
-    pending_extend_mesages[chat_id].push_back(msg_id);
-    delete_messages(chat_id, pending_extend_mesages[chat_id]);
+    pending_extend_messages[chat_id].push_back(msg_id);
+    delete_messages(chat_id, pending_extend_messages[chat_id]);
 
-    pending_extend_mesages[chat_id].clear();
+    pending_extend_messages[chat_id].clear();
   }
 
   const std::regex cancel_regex("游戏取消|目前没有进行中的游戏|游戏启动中|夜幕降临|第\\d+天");
@@ -477,7 +477,7 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
   if (std::regex_search(text, cancel_match, cancel_regex)) {
     player_count[chat_id] = 0;
     has_owner[chat_id] = 0;
-    pending_extend_mesages[chat_id].clear();
+    pending_extend_messages[chat_id].clear();
     last_extent_at[chat_id] = 0;
     players_message[chat_id] = 0;
     need_extend[chat_id] = 0;
@@ -879,7 +879,7 @@ void tdscript::save() {
 
   ofs << m2s(player_count) << '\n';
   ofs << m2s(has_owner) << '\n';
-  ofs << ma2s(pending_extend_mesages) << '\n';
+  ofs << ma2s(pending_extend_messages) << '\n';
   ofs << m2s(last_extent_at) << '\n';
   ofs << m2s(players_message) << '\n';
   ofs << m2s(need_extend) << '\n';
@@ -915,7 +915,7 @@ void tdscript::load() {
         while (std::regex_search(value, stick_match, stick_regex)) {
           std::string a = stick_match[1];
           std::cout << "    " << a << '\n';
-          pending_extend_mesages[std::stoll(key)].push_back(std::stoll(a));
+          pending_extend_messages[std::stoll(key)].push_back(std::stoll(a));
           value = stick_match.suffix();
         }
       }
