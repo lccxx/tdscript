@@ -1,2 +1,6 @@
 #define TDSCRIPT_VERSION_MAJOR @tdscript_VERSION_MAJOR@
 #define TDSCRIPT_VERSION_MINOR @tdscript_VERSION_MINOR@
+
+#define ON 1
+#define OFF 0
+#define TDSCRIPT_WITH_IPV6 @WITH_IPV6@

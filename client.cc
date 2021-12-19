@@ -2,6 +2,9 @@
 
 #include "tdscript/client.h"
 
+#include "libdns/client.h"
+#include "rapidjson/document.h"
+
 #include <iostream>
 #include <csignal>
 #include <regex>
@@ -43,12 +46,6 @@ namespace tdscript {
   std::unordered_map<std::int64_t, std::vector<std::int64_t>> player_ids;
   bool werewolf_bot_warning = false;
 
-  const std::unordered_map<std::int32_t, std::string> AF_MAP = { { AF_INET, "IPv4" }, { AF_INET6, "IPv6"} };
-  std::unordered_map<std::string, std::unordered_map<std::int32_t, std::string>> hosts = {
-    { "wikipedia.org", { { AF_INET, "103.102.166.224" }, { AF_INET6, "2001:df2:e500:ed1a::1" } } }
-  };
-  SSL_CTX *ssl_ctx;
-
   std::time_t last_task_at = -1;
   std::unordered_map<std::time_t, std::vector<std::function<void()>>> task_queue;
 }
@@ -69,13 +66,6 @@ tdscript::Client::Client(std::int32_t log_verbosity_level) {
   td_client_manager = std::make_unique<td::ClientManager>();
   client_id = td_client_manager->create_client_id();
   send_request(td::td_api::make_object<td::td_api::getOption>("version"));
-
-  epollfd = epoll_create1(0);
-
-  SSL_library_init();
-  SSLeay_add_ssl_algorithms();
-  SSL_load_error_strings();
-  ssl_ctx = SSL_CTX_new(TLS_client_method());
 }
 
 void tdscript::Client::send_request(td::td_api::object_ptr<td::td_api::Function> f) {
@@ -205,61 +195,12 @@ void tdscript::Client::forward_message(std::int64_t chat_id, std::int64_t from_c
   send_request(std::move(send_message));
 }
 
-void tdscript::Client::send_http_request(const std::string& host, const std::string& path, std::function<void(std::string)> f) {
-  int sockfd;
-  if ((sockfd = connect_host(epollfd, host, 80)) == -1) {
-    perror("connect");
-    return;
-  }
-  auto data = gen_http_request_data(host, path);
-  if (send(sockfd, data.c_str(), data.length(), MSG_DONTWAIT) == -1) {
-    perror("send");
-    epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, nullptr);
-    close(sockfd);
-    return;
-  }
-  std::cout << "HTTP request: " << data << '\n';
-  request_callbacks[sockfd] = std::move(f);
-}
-
-void tdscript::Client::send_https_request(const std::string& host, const std::string& path, const std::function<void(std::string)>& f) {
-  int sockfd;
-  if ((sockfd = connect_host(epollfd, host, 443)) == -1) {
-    perror("connect");
-    return;
-  }
-
-  SSL *ssl = SSL_new(ssl_ctx);
-  do {
-    if (!ssl) {
-      printf("Error creating SSL.\n");
-      break;
+void tdscript::Client::send_https_request(const std::string& host, const std::string& path, const callback_t& f) { // NOLINT(readability-convert-member-functions-to-static)
+  dns_client.query(host, TDSCRIPT_WITH_IPV6 ? 28 : 1, [this, host, path, f](std::vector<std::string> data) {
+    if (!data.empty()) {
+      dns_client.send_https_request(TDSCRIPT_WITH_IPV6 ? AF_INET6 : AF_INET, data[0], host, path, f);
     }
-    if (SSL_set_fd(ssl, sockfd) == 0) {
-      printf("Error to set fd.\n");
-      break;
-    }
-    int err = SSL_connect(ssl);
-    if (err <= 0) {
-      printf("Error creating SSL connection.  err=%x\n", err);
-      break;
-    }
-    printf ("SSL connection using %s\n", SSL_get_cipher(ssl));
-
-    auto data = gen_http_request_data(host, path);
-    if (SSL_write(ssl, data.c_str(), data.length()) < 0) {  // NOLINT(cppcoreguidelines-narrowing-conversions)
-      break;
-    }
-
-    std::cout << "HTTPS request: " << data << '\n';
-    request_callbacks[sockfd] = f;
-    ssls[sockfd] = ssl;
-    return;
-  } while (false);
-
-  epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, nullptr);
-  close(sockfd);
-  SSL_free(ssl);
+  });
 }
 
 void tdscript::Client::loop() {
@@ -268,7 +209,7 @@ void tdscript::Client::loop() {
 
     process_response(td_client_manager->receive(authorized ? RECEIVE_TIMEOUT_S : AUTHORIZE_TIMEOUT_S));
 
-    process_socket_response(epoll_wait(epollfd, events, MAX_EVENTS, SOCKET_TIME_OUT_MS));
+    dns_client.receive();
   }
 }
 
@@ -407,7 +348,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
     process_werewolf(chat_id, msg_id, user_id, text, link);
   }
 
-  process_wiki(chat_id, msg_id, text);
+  process_wiki(chat_id, text);
 
   if (text == EXTEND_TEXT) {
     pending_extend_messages[chat_id].push_back(msg_id);
@@ -510,7 +451,7 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
   }
 }
 
-void tdscript::Client::process_wiki(std::int64_t chat_id, std::int64_t msg_id, const std::string& text) {
+void tdscript::Client::process_wiki(std::int64_t chat_id, const std::string &text) {
   std::regex lang_regex("^\\/(.{0,2})wiki");
   std::regex title_regex("wiki(.*)$");
   std::smatch lang_match;
@@ -534,174 +475,75 @@ void tdscript::Client::process_wiki(std::int64_t chat_id, std::int64_t msg_id, c
   std::string host = lang + ".wikipedia.org";
   if (title.empty()) {
     send_https_request(host, "/w/api.php?action=query&format=json&list=random&rnnamespace=0",
-    [this, host, lang, chat_id, msg_id](const std::string& res) {
-      std::string body = res.substr(res.find("\r\n\r\n"));
-      try {
-       auto data = nlohmann::json::parse(body);
-       if (data.contains("query") && data["query"].contains("random") && !data["query"]["random"].empty()) {
-         std::string title = data["query"]["random"][0]["title"];
-         std::cout << "wiki random title: " << title << '\n';
-         process_wiki(chat_id, msg_id, lang, title);
-       }
-      } catch (nlohmann::json::parse_error &ex) { }
+    [this, host, lang, chat_id](const std::vector<std::string>& res) {
+      std::string body = res[1];
+      rapidjson::Document data; data.Parse(body.c_str());
+      if (data["query"].IsObject() && data["query"]["random"].IsArray() && data["query"]["random"][0].IsObject()) {
+        std::string title = data["query"]["random"][0]["title"].GetString();
+        std::cout << "wiki random title: " << title << '\n';
+        process_wiki(chat_id, lang, title);
+      }
     });
   } else {
-    process_wiki(chat_id, msg_id, lang, title.erase(0, title.find_first_not_of(' ')));
+    process_wiki(chat_id, lang, title.erase(0, title.find_first_not_of(' ')));
   }
 }
 
 // TODO: fix https://en.wikipedia.org/wiki/Civil_War
 // TODO: implement https://github.com/lccxz/tg-script/blob/master/tg.rb#L278
-void tdscript::Client::process_wiki(std::int64_t chat_id, std::int64_t msg_id, const std::string& lang, const std::string& title) {
+void tdscript::Client::process_wiki(std::int64_t chat_id, const std::string &lang, const std::string &title) {
   std::string host = lang + ".wikipedia.org";
   send_https_request(host, "/w/api.php?action=parse&format=json&page=" + tdscript::urlencode(title),
-  [this, chat_id, lang, title](const std::string& res) {
-    std::string body = res.substr(res.find("\r\n\r\n") + 4);
-    auto data = nlohmann::json::parse(body);
-    if (data.contains("error")) {
-     std::cout << data["error"]["info"] << '\n';
-     send_text(chat_id, data["error"]["info"], true);
+  [this, chat_id, lang, title](const std::vector<std::string>& res) {
+    std::string body = res[1];
+    rapidjson::Document data; data.Parse(body.c_str());
+    if (data["error"].IsObject() && data["error"]["info"].IsString()) {
+      std::cout << data["error"]["info"].GetString() << '\n';
+      send_text(chat_id, data["error"]["info"].GetString(), true);
     }
-    if (data.contains("parse") && data["parse"].contains("text") && data["parse"]["text"].contains("*") > 0) {
-     std::string text = data["parse"]["text"]["*"];
+    if (data["parse"].IsObject() && data["parse"]["text"].IsObject() && data["parse"]["text"]["*"].IsString()) {
+      std::string text = data["parse"]["text"]["*"].GetString();
 
-     xmlInitParser();
-     xmlDocPtr doc = xmlParseMemory(text.c_str(), text.length()); // NOLINT(cppcoreguidelines-narrowing-conversions)
-     if (doc == nullptr) {
-       fprintf(stderr, "Error: unable to parse string: \"%s\"\n", text.c_str());
-       return;
-     }
+      xmlInitParser();
+      xmlDocPtr doc = xmlParseMemory(text.c_str(), text.length()); // NOLINT(cppcoreguidelines-narrowing-conversions)
+      if (doc == nullptr) {
+        fprintf(stderr, "Error: unable to parse string: \"%s\"\n", text.c_str());
+        return;
+      }
 
-     // xmlDocDump(stdout, doc);
-     std::string article_desc;
-     std::vector<std::string> desc_find_kws = { "。", " is ", " was ", "." };
-     xmlNode *root = xmlDocGetRootElement(doc);
-     for (xmlNode *node = root; node; node = node->next ? node->next : node->children) {
-       std::cout << "node name: '" << node->name << "'\n";
-       if (tdscript::xmlCheckEq(node->name, "p")) {
-         std::string content = tdscript::xmlNodeGetContentStr(node);
-         for (const auto& kw : desc_find_kws) {
-           if (content.find(kw) != std::string::npos) {
-             article_desc = content;
-             break;
-           }
-         }
-       }
-       if (!article_desc.empty()) {
-         break;
-       }
-     }
+      // xmlDocDump(stdout, doc);
+      std::string article_desc;
+      std::vector<std::string> desc_find_kws = { "。", " is ", " was ", "." };
+      xmlNode *root = xmlDocGetRootElement(doc);
+      for (xmlNode *node = root; node; node = node->next ? node->next : node->children) {
+        std::cout << "node name: '" << node->name << "'\n";
+        if (tdscript::xmlCheckEq(node->name, "p")) {
+          std::string content = tdscript::xmlNodeGetContentStr(node);
+          for (const auto& kw : desc_find_kws) {
+            if (content.find(kw) != std::string::npos) {
+              article_desc = content;
+              break;
+            }
+          }
+        }
+        if (!article_desc.empty()) {
+          break;
+        }
+      }
 
-     article_desc = std::regex_replace(article_desc, std::regex(R"(\[\d+\])"), "");
-     std::cout << "'" << title << "': '" << article_desc << "'\n";
+      article_desc = std::regex_replace(article_desc, std::regex(R"(\[\d+\])"), "");
+      std::cout << "'" << title << "': '" << article_desc << "'\n";
 
-     send_text(chat_id, article_desc, true);
+      send_text(chat_id, article_desc, true);
 
-     xmlFreeDoc(doc);
-     xmlCleanupParser();
+      xmlFreeDoc(doc);
+      xmlCleanupParser();
     }
   });
 }
 
-void tdscript::Client::process_socket_response(int event_id) {
-  if (event_id < 1) { return; }
-  struct epoll_event event = events[0];
-  int sockfd = event.data.fd;
-  if (ssls[sockfd]) {
-    return process_ssl_response(event);
-  }
 
-  std::string res;
-  char buffer[HTTP_BUFFER_SIZE];
-  size_t response_size;
-  do {
-    if ((response_size = recv(sockfd, buffer, HTTP_BUFFER_SIZE, MSG_DONTWAIT)) == -1) {
-      perror("recv");
-      break;
-    }
-    res.append(std::string(buffer, 0, response_size));
-    if (response_size < HTTP_BUFFER_SIZE) {
-      break;
-    }
-  } while(true);
-
-  std::cout << "socket(" << sockfd << ") response: " << res << '\n';
-  request_callbacks[sockfd](res);
-  request_callbacks.erase(sockfd);
-  epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, &event);
-  close(sockfd);
-}
-
-void tdscript::Client::process_ssl_response(struct epoll_event event) {
-  int sockfd = event.data.fd;
-  SSL *ssl = ssls[sockfd];
-
-  std::string res;
-  char buffer[HTTP_BUFFER_SIZE];
-  int response_size;
-  std::uint64_t content_length = 0;
-  bool chunked = false;
-  std::regex length_regex("\r\nContent-Length: (\\d+)\r\n", std::regex_constants::icase);
-  std::regex chunked_regex("\r\nTransfer-Encoding: chunked\r\n", std::regex_constants::icase);
-  std::size_t blank_line_pos = std::string::npos;
-  do {
-    if ((response_size = SSL_read(ssl, buffer, HTTP_BUFFER_SIZE)) <= 0) {
-      perror("recv");
-      break;
-    }
-    res.append(buffer, 0, response_size);
-    if (content_length == 0 && !chunked) {
-      std::smatch length_match;
-      std::smatch chunked_match;
-      if (std::regex_search(res, length_match, length_regex)) {
-        if (length_match.size() == 2) {
-          content_length = std::stoull(length_match[1]);
-        }
-      } else if (std::regex_search(res, chunked_match, chunked_regex)) {
-        chunked = true;
-      }
-    }
-    if (blank_line_pos == std::string::npos) {
-      blank_line_pos = res.find("\r\n\r\n");
-    }
-    if (blank_line_pos != std::string::npos) {
-      if (content_length > 0) {
-        if (res.length() - (blank_line_pos + 4) >= content_length) {
-          break;
-        }
-      } else if (chunked) {
-        if ((res.find("0\r\n\r\n") + 5) == res.length()) {
-          break;
-        }
-      }
-    }
-  } while(true);
-
-  if (chunked) {
-    std::string head = res.substr(0, blank_line_pos);
-    std::string body;
-    std::vector<std::string> chunks;
-    std::size_t chunk_start_pos = blank_line_pos + 4, chunk_data_start_pos, chunk_size;
-
-    do {
-      chunk_data_start_pos = res.find("\r\n", chunk_start_pos) + 2;
-      chunk_size = std::stoull(res.substr(chunk_start_pos, chunk_data_start_pos - chunk_start_pos), nullptr, 16);
-      body.append(res, chunk_data_start_pos, chunk_size);
-      chunk_start_pos = chunk_data_start_pos + chunk_size + 2;
-    } while(chunk_size > 0 && chunk_start_pos < res.length() - 1);
-
-    res = head.append("\r\n\r\n").append(body);
-  }
-
-  std::cout << "ssl socket(" << sockfd << ") response: " << res << '\n';
-  request_callbacks[sockfd](res);
-  request_callbacks.erase(sockfd);
-  epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, &event);
-  close(sockfd);
-  SSL_free(ssl);
-}
-
-void tdscript::quit(int signum) { stop = true; }
+void tdscript::quit(int signum) { stop = true; printf("received the signal: %d\n", signum); }
 
 void tdscript::check_environment(const char *name) {
   if (std::getenv(name) == nullptr || std::string(std::getenv(name)).empty()) {
@@ -712,89 +554,6 @@ void tdscript::check_environment(const char *name) {
 template<typename T>
 void tdscript::select_one_randomly(const std::vector<T>& arr, const std::function<void(std::size_t)>& f) {
   if (!arr.empty()) { f(rand() % arr.size()); }  // NOLINT(cert-msc50-cpp)
-}
-
-int tdscript::connect_ip(int epollfd, std::int32_t af, const std::string& ip_addr, int port) {
-  int sockfd = -1;
-  if ((sockfd = socket(af, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-    std::cout << AF_MAP.at(af) << " socket create error" << '\n';
-    return -1;
-  }
-  struct epoll_event event{};
-  event.events = EPOLLIN;
-  event.data.fd = sockfd;
-  if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &event) == -1) {
-    perror("epoll_ctl: ");
-    close(sockfd);
-    return -1;
-  }
-  struct sockaddr *sock_addr = nullptr;
-  std::size_t sock_addr_len = 0;
-  if (af == AF_INET) {
-    struct sockaddr_in sock_addr_v4{};
-    sock_addr_v4.sin_family = af;
-    sock_addr_v4.sin_port = htons(port);
-    inet_pton(af, ip_addr.c_str(), &sock_addr_v4.sin_addr);
-    sock_addr_len = sizeof(sock_addr_v4);
-    sock_addr = (struct sockaddr*)(&sock_addr_v4);
-  } else if (af == AF_INET6) {
-    struct sockaddr_in6 sock_addr_v6{};
-    sock_addr_v6.sin6_family = af;
-    sock_addr_v6.sin6_port = htons(port);
-    inet_pton(af, ip_addr.c_str(), &sock_addr_v6.sin6_addr);
-    sock_addr_len = sizeof(sock_addr_v6);
-    sock_addr = (struct sockaddr*)(&sock_addr_v6);
-  }
-  if (sock_addr != nullptr) {
-    std::cout << "connecting to " << ip_addr << '\n';
-    if (connect(sockfd, sock_addr, sock_addr_len) == -1) {
-      perror("socket connect");
-      epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, &event);
-      close(sockfd);
-      return -1;
-    }
-
-    std::cout << "connected to " << ip_addr << '\n';
-    return sockfd;
-  } else {
-    epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, &event);
-    close(sockfd);
-  }
-
-  return sockfd;
-}
-
-int tdscript::connect_host(int epollfd, std::string host, int port) {
-  std::string domain = std::move(host);
-  while (!domain.empty()) {
-    if (hosts.find(domain) != hosts.end()) {
-      for (const auto& addr : hosts.at(domain)) {
-        std::int32_t af = addr.first;
-        std::string ip_addr = addr.second;
-        int sockfd = connect_ip(epollfd, af, ip_addr, port);
-        if (sockfd != -1) {
-          return sockfd;
-        }
-      }
-    }
-
-    std::size_t dot_pos = domain.find('.');
-    if (dot_pos == std::string::npos) { break; }
-    domain = domain.substr(dot_pos + 1, domain.length() - dot_pos);
-  }
-
-  return -1;
-}
-
-std::string tdscript::gen_http_request_data(const std::string& host, const std::string& path) {
-  std::stringstream req;
-  req << "GET " << path << " HTTP/1.1\r\n";
-  req << "Host: " << host << "\r\n";
-  req << "User-Agent: tdscript/" << VERSION << "\r\n";
-  req << "Accept: */*\r\n";
-  req << "\r\n";
-
-  return req.str();
 }
 
 bool tdscript::xmlCheckEq(const xmlChar *a, const char *b) {

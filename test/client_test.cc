@@ -2,12 +2,10 @@
 
 #include "tdscript/client.h"
 
-#include "gtest/gtest.h"
+#include <cassert>
 
-
-TEST(RandomTest, Create) {   // NOLINT(cert-err58-cpp)
-  EXPECT_EQ(1, 1) << "1 == 1";
-  EXPECT_EQ("0.1", tdscript::VERSION) << "version";
+int main() {
+  assert("0.1" == tdscript::VERSION);
 
   auto client = tdscript::Client(1023);
 
@@ -25,4 +23,7 @@ TEST(RandomTest, Create) {   // NOLINT(cert-err58-cpp)
       }
     }
   }
+
+  return 0;
 }
+

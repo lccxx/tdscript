@@ -3,15 +3,13 @@
 #ifndef INCLUDE_TDSCRIPT_CLIENT_H_
 #define INCLUDE_TDSCRIPT_CLIENT_H_
 
-#include "tdscript/version.h"
+#include "tdscript/config.h"
 
 #include <td/telegram/Client.h>
 #include <td/telegram/td_api.h>
 #include <td/telegram/td_api.hpp>
 
-#include <openssl/ssl.h>
-
-#include <nlohmann/json.hpp>
+#include "libdns/client.h"
 
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -20,10 +18,6 @@
 #include <unordered_map>
 #include <ctime>
 #include <functional>
-
-#include <unistd.h>
-#include <sys/socket.h>
-#include <sys/epoll.h>
 
 namespace tdscript {
   const std::string VERSION = std::to_string(TDSCRIPT_VERSION_MAJOR) + std::string(".") + std::to_string(TDSCRIPT_VERSION_MINOR);
@@ -43,8 +37,6 @@ namespace tdscript {
   const double RECEIVE_TIMEOUT_S = 0.01;
   const double AUTHORIZE_TIMEOUT_S = 30;
   const int SOCKET_TIME_OUT_MS = 10;
-  constexpr int MAX_EVENTS = 1;
-  constexpr size_t HTTP_BUFFER_SIZE = 8192;
 
   const std::vector<std::string> HEX_CODES = {
           "0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F" };
@@ -52,6 +44,7 @@ namespace tdscript {
   class Client {
    private:
     typedef td::td_api::object_ptr<td::td_api::Object> tdo_ptr;
+    typedef std::function<void(std::vector<std::string>)> callback_t;
 
    public:
     std::unique_ptr<td::ClientManager> td_client_manager;
@@ -60,10 +53,7 @@ namespace tdscript {
     std::unordered_map<std::uint64_t, std::function<void(tdo_ptr)>> query_callbacks;
     bool authorized = false;
 
-    int epollfd;
-    struct epoll_event events[MAX_EVENTS]{};
-    std::unordered_map<std::int32_t, std::function<void(std::string)>> request_callbacks;
-    std::unordered_map<std::int32_t, SSL*> ssls;
+    libdns::Client dns_client;
 
     explicit Client(std::int32_t log_verbosity_level);
     Client() : Client(0) {};
@@ -84,8 +74,7 @@ namespace tdscript {
     void get_message(std::int64_t chat_id, std::int64_t msg_id, std::function<void(tdo_ptr)> callback);
     void forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id);
     void forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id, bool copy);
-    void send_http_request(const std::string& host, const std::string& path, std::function<void(std::string)> f);
-    void send_https_request(const std::string& host, const std::string& path, const std::function<void(std::string)>& f);
+    void send_https_request(const std::string& host, const std::string& path, const callback_t& f);
 
     void loop();
 
@@ -94,18 +83,13 @@ namespace tdscript {
     void process_message(td::td_api::object_ptr<td::td_api::message> msg);
     void process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text, const std::string& link);
     void process_werewolf(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text, const std::string& link);
-    void process_wiki(std::int64_t chat_id, std::int64_t msg_id, const std::string& text);
-    void process_wiki(std::int64_t chat_id, std::int64_t msg_id, const std::string& lang, const std::string& title);
-    void process_socket_response(int event_id);
-    void process_ssl_response(struct epoll_event event);
+    void process_wiki(std::int64_t chat_id, const std::string &text);
+    void process_wiki(std::int64_t chat_id, const std::string &lang, const std::string &title);
   };  // class Client
 
   void quit(int signum);
   void check_environment(const char *name);
   template<typename T> void select_one_randomly(const std::vector<T>&, const std::function<void(std::size_t)>&);
-  int connect_ip(int epollfd, std::int32_t af, const std::string& ip_addr, int port);
-  int connect_host(int epollfd, std::string host, int port);
-  std::string gen_http_request_data(const std::string& host, const std::string& path);
   bool xmlCheckEq(const xmlChar *a, const char *b);
   std::string xmlNodeGetContentStr(const xmlNode *node);
   template<typename Tk, typename Tv> std::string m2s(std::unordered_map<Tk, Tv> map);

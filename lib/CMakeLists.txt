@@ -56,7 +56,7 @@ endif()
 
 set(Td_DIR "${TD_INSTALL_DIR}/lib/cmake/Td" PARENT_SCOPE)
 
-add_subdirectory(json)
+add_subdirectory(libdns)
 
 if (WITH_STATIC)
     set(BUILD_SHARED_LIBS OFF)
