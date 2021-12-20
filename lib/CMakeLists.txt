@@ -46,7 +46,7 @@ if (NOT EXISTS "${TD_INSTALL_DIR}/lib/libtdcore.a")
 
     execute_process(
             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/td"
-            COMMAND "cmake" "--install" "build"
+            COMMAND "cmake" "--install" "${TD_BUILD_DIR}"
             RESULT_VARIABLE ret
     )
     if(${ret})
