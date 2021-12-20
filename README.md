@@ -15,7 +15,7 @@ cmake -S . -B build
 cmake --build build
 # cmake --build build-release
 
-build/tdscript_test_client_test
+ctest --test-dir build
 
 build/tdscript
 ```
