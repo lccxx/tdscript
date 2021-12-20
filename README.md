@@ -13,7 +13,6 @@ cmake -S . -B build
 #   -DWITH_TESTS=OFF -DWITH_STATIC=ON -DWITH_IPV6=ON -S . -B build-release
 
 cmake --build build
-# cmake --build build-release
 
 ctest --test-dir build
 
