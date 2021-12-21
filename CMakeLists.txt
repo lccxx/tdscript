@@ -19,7 +19,6 @@ set(SOURCES client.cc)
 
 if (WITH_STATIC) # check: readelf -d build/tdscript
   set(CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   set(LIBRARIES ${LIBRARIES} -static)
 endif()
 
