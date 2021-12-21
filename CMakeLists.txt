@@ -4,8 +4,6 @@ project(tdscript VERSION 0.1)
 
 add_subdirectory(lib)
 
-find_package(Td REQUIRED NO_DEFAULT_PATH)
-
 option(WITH_TESTS "make with tests" ON)
 option(WITH_STATIC "link statically" OFF)
 option(WITH_IPV6 "use IPv6 server address" OFF)
