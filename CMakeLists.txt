@@ -2,7 +2,13 @@ cmake_minimum_required(VERSION 3.11)
 
 project(tdscript VERSION 0.1)
 
-add_subdirectory(lib)
+add_subdirectory(lib/libdns)
+
+set(OPENSSL_CRYPTO_LIBRARY crypto)
+set(OPENSSL_SSL_LIBRARY ssl)
+
+add_subdirectory(lib/td)
+add_subdirectory(lib/libxml2)
 
 option(WITH_TESTS "make with tests" ON)
 option(WITH_STATIC "link statically" OFF)
@@ -13,7 +19,7 @@ configure_file(config.h.in include/${PROJECT_NAME}/config.h)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-set(LIBRARIES Td::TdStatic libdns LibXml2)
+set(LIBRARIES libdns Td::TdStatic LibXml2)
 set(INCLUDES include ${PROJECT_BINARY_DIR}/include)
 set(SOURCES client.cc)
 
