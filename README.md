@@ -13,9 +13,8 @@ cmake -S . -B build
 #   -DWITH_TESTS=OFF -DWITH_STATIC=ON -DWITH_IPV6=ON -S . -B build-release
 
 cmake --build build
-# cmake --build build-release
 
-build/tdscript_test_client_test
+ctest --test-dir build
 
 build/tdscript
 ```
