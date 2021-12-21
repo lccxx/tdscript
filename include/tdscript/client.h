@@ -87,6 +87,7 @@ namespace tdscript {
     void process_wiki(std::int64_t chat_id, const std::string &lang, const std::string &title);
   };  // class Client
 
+  void initial();
   void quit(int signum);
   void check_environment(const char *name);
   template<typename T> void select_one_randomly(const std::vector<T>&, const std::function<void(std::size_t)>&);

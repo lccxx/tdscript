@@ -18,8 +18,9 @@ namespace tdscript {
   const std::int32_t EXTEND_TIME = 123;
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ") + std::to_string(EXTEND_TIME);
   const std::vector<std::vector<std::int64_t>> STICKS_STARTING = {
-      { -681384622, 357654593536 }, { -681384622, 357655642112 }, { -681384622, 356104798208 },
+      { -681384622, 357654593536 }, { -681384622, 357655642112 },
       { -1001098611371, 2753360297984, 2753361346560 },
+      { -681384622, 356104798208 },
       { 981032009, 357662982144, 2753361346560 },
       { 981032009, 357661933568, 2753361346560 },
       { 981032009, 357660884992, 2753361346560 },
@@ -51,16 +52,9 @@ namespace tdscript {
 }
 
 tdscript::Client::Client(std::int32_t log_verbosity_level) {
-  check_environment("HOME");
-  check_environment("TG_API_ID");
-  check_environment("TG_API_HASH");
-  check_environment("TG_DB_ENCRYPTION_KEY");
-  check_environment("TG_PHONE_NUMBER");
-
-  signal(SIGINT, quit);
-  signal(SIGTERM, quit);
-
-  load();
+  if (!data_ready) {
+    initial();
+  }
 
   td::ClientManager::execute(td::td_api::make_object<td::td_api::setLogVerbosityLevel>(log_verbosity_level));
   td_client_manager = std::make_unique<td::ClientManager>();
@@ -357,7 +351,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
   const std::regex starting_regex("游戏启动中");
   std::smatch starting_match;
   if (std::regex_search(text, starting_match, starting_regex)) {
-    for (const auto& at : at_list[chat_id]) { send_text(chat_id, at); } at_list[chat_id].clear();
+    for (const auto& at : at_list[chat_id]) { send_text(chat_id, at); }
     select_one_randomly(STICKS_STARTING, [this, chat_id](std::size_t i) {
       while (true) {
         std::cout << "selected stick, number: " << i << '\n';
@@ -405,6 +399,13 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
       }
       players_message[chat_id] = msg_id;
     }
+
+    at_list[chat_id].clear();
+    for (const auto& player : KEY_PLAYERS) {
+      if (text.find(player.first) != std::string::npos) {
+        at_list[chat_id].push_back(player.second);
+      }
+    }
   }
 
   if (players_message.count(chat_id) > 0 && msg_id == players_message.at(chat_id)) {
@@ -412,14 +413,6 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
     std::smatch owner_match;
     if (std::regex_search(text, owner_match, owner_regex)) {
       has_owner[chat_id] = 1;
-    }
-  }
-
-  for (const auto& player : KEY_PLAYERS) {
-    if (text.find(player.first) != std::string::npos) {
-      if (std::count(at_list[chat_id].begin(), at_list[chat_id].end(), player.second) == 0) {
-        at_list[chat_id].push_back(player.second);
-      }
     }
   }
 
@@ -542,6 +535,18 @@ void tdscript::Client::process_wiki(std::int64_t chat_id, const std::string &lan
   });
 }
 
+void tdscript::initial() {
+  check_environment("HOME");
+  check_environment("TG_API_ID");
+  check_environment("TG_API_HASH");
+  check_environment("TG_DB_ENCRYPTION_KEY");
+  check_environment("TG_PHONE_NUMBER");
+
+  signal(SIGINT, quit);
+  signal(SIGTERM, quit);
+
+  load();
+}
 
 void tdscript::quit(int signum) { stop = true; printf("received the signal: %d\n", signum); }
 
