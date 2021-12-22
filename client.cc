@@ -6,12 +6,9 @@
 #include "rapidjson/document.h"
 
 #include <iostream>
-#include <csignal>
 #include <regex>
 #include <fstream>
 #include <utility>
-
-#include <arpa/inet.h>
 
 namespace tdscript {
   const std::int64_t USER_ID_WEREWOLF = 175844556;
@@ -43,89 +40,14 @@ namespace tdscript {
   std::unordered_map<std::int64_t, std::int64_t> players_message;
   std::unordered_map<std::int64_t, std::uint8_t> need_extend;
 
+  std::mt19937 rand_engine = std::mt19937((std::random_device())());
+
   std::unordered_map<std::int64_t, std::vector<std::string>> at_list;  // the '@' list
   std::unordered_map<std::int64_t, std::vector<std::int64_t>> player_ids;
   bool werewolf_bot_warning = false;
 
   std::time_t last_task_at = -1;
   std::unordered_map<std::time_t, std::vector<std::function<void()>>> task_queue;
-}
-
-tdscript::Client::Client(std::int32_t log_verbosity_level) {
-  if (!data_ready) {
-    initial();
-  }
-
-  td::ClientManager::execute(td::td_api::make_object<td::td_api::setLogVerbosityLevel>(log_verbosity_level));
-  td_client_manager = std::make_unique<td::ClientManager>();
-  client_id = td_client_manager->create_client_id();
-  send_request(td::td_api::make_object<td::td_api::getOption>("version"));
-}
-
-void tdscript::Client::send_request(td::td_api::object_ptr<td::td_api::Function> f) {
-  send_request(std::move(f), [](tdo_ptr update){ });
-}
-
-void tdscript::Client::send_request(td::td_api::object_ptr<td::td_api::Function> f, std::function<void(tdo_ptr)> callback) {
-  std::cout << "send " << (current_query_id + 1) << ": " << td::td_api::to_string(f) << std::endl;
-  td_client_manager->send(client_id, current_query_id++, std::move(f));
-  query_callbacks[current_query_id] = std::move(callback);
-}
-
-void tdscript::Client::send_parameters() {
-  auto parameters = td::td_api::make_object<td::td_api::tdlibParameters>();
-  parameters->database_directory_ = std::string(std::getenv("HOME")).append("/").append(".tdlib");
-  parameters->use_message_database_ = true;
-  parameters->use_secret_chats_ = false;
-  parameters->api_id_ = std::stoi(std::getenv("TG_API_ID"));
-  parameters->api_hash_ = std::getenv("TG_API_HASH");
-  parameters->system_language_code_ = "en";
-  parameters->device_model_ = "Desktop";
-  parameters->application_version_ = VERSION;
-  parameters->enable_storage_optimizer_ = true;
-  send_request(td::td_api::make_object<td::td_api::setTdlibParameters>(std::move(parameters)));
-}
-
-void tdscript::Client::send_code() {
-  std::cout << "Enter authentication code: " << std::flush;
-  std::string code;
-  std::cin >> code;
-  send_request(td::td_api::make_object<td::td_api::checkAuthenticationCode>(code));
-}
-
-void tdscript::Client::send_password() {
-  std::cout << "Enter authentication password: " << std::flush;
-  std::string password;
-  std::getline(std::cin, password);
-  send_request(td::td_api::make_object<td::td_api::checkAuthenticationPassword>(password));
-}
-
-void tdscript::Client::send_text(std::int64_t chat_id, std::string text) {
-  send_text(chat_id, 0, std::move(text), false);
-}
-
-void tdscript::Client::send_text(std::int64_t chat_id, std::string text, bool no_link_preview) {
-  send_text(chat_id, 0, std::move(text), no_link_preview);
-}
-
-void tdscript::Client::send_text(std::int64_t chat_id, std::int64_t reply_id, std::string text, bool no_link_preview) {
-  auto send_message = td::td_api::make_object<td::td_api::sendMessage>();
-  send_message->chat_id_ = chat_id;
-  send_message->reply_to_message_id_ = reply_id;
-  auto message_content = td::td_api::make_object<td::td_api::inputMessageText>();
-  message_content->text_ = td::td_api::make_object<td::td_api::formattedText>();
-  message_content->text_->text_ = std::move(text);
-  message_content->disable_web_page_preview_ = no_link_preview;
-  send_message->input_message_content_ = std::move(message_content);
-  send_request(std::move(send_message));
-}
-
-void tdscript::Client::send_reply(std::int64_t chat_id, std::int64_t reply_id, std::string text) {
-  send_text(chat_id, reply_id, std::move(text), false);
-}
-
-void tdscript::Client::send_start(std::int64_t chat_id, std::int64_t bot_id, const std::string& link) {
-  send_start(chat_id, bot_id, link, 9);
 }
 
 void tdscript::Client::send_start(std::int64_t chat_id, std::int64_t bot_id, const std::string& link, int limit) {
@@ -163,48 +85,6 @@ void tdscript::Client::send_extend(std::int64_t chat_id) {
   if (last_extent_at.count(chat_id) > 0 && std::time(nullptr) - last_extent_at.at(chat_id) < 5) { return; }
   last_extent_at[chat_id] = std::time(nullptr);
   send_text(chat_id, EXTEND_TEXT);
-}
-
-void tdscript::Client::delete_messages(std::int64_t chat_id, std::vector<std::int64_t> message_ids) {
-  send_request(td::td_api::make_object<td::td_api::deleteMessages>(chat_id, std::move(message_ids), true));
-}
-
-void tdscript::Client::get_message(std::int64_t chat_id, std::int64_t msg_id, std::function<void(tdo_ptr)> callback) {
-  if (chat_id == 0 || msg_id == 0) { return; }
-  std::vector<std::int64_t> message_ids = { msg_id };
-  send_request(td::td_api::make_object<td::td_api::getMessages>(chat_id, std::move(message_ids)), std::move(callback));
-}
-
-void tdscript::Client::forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id) {
-  forward_message(chat_id, from_chat_id, msg_id, true);
-}
-
-void tdscript::Client::forward_message(std::int64_t chat_id, std::int64_t from_chat_id, std::int64_t msg_id, bool copy) {
-  auto send_message = td::td_api::make_object<td::td_api::forwardMessages>();
-  send_message->chat_id_ = chat_id;
-  send_message->from_chat_id_ = from_chat_id;
-  send_message->message_ids_ = { msg_id };
-  send_message->send_copy_ = copy;
-  send_message->remove_caption_ = false;
-  send_request(std::move(send_message));
-}
-
-void tdscript::Client::send_https_request(const std::string& host, const std::string& path, const callback_t& f) { // NOLINT(readability-convert-member-functions-to-static)
-  dns_client.query(host, TDSCRIPT_WITH_IPV6 ? 28 : 1, [this, host, path, f](std::vector<std::string> data) {
-    if (!data.empty()) {
-      dns_client.send_https_request(TDSCRIPT_WITH_IPV6 ? AF_INET6 : AF_INET, data[0], host, path, f);
-    }
-  });
-}
-
-void tdscript::Client::loop() {
-  while(!stop) {
-    process_tasks(std::time(nullptr));
-
-    process_response(td_client_manager->receive(authorized ? RECEIVE_TIMEOUT_S : AUTHORIZE_TIMEOUT_S));
-
-    dns_client.receive();
-  }
 }
 
 void tdscript::Client::process_tasks(std::time_t time) {
@@ -451,14 +331,9 @@ void tdscript::Client::process_wiki(std::int64_t chat_id, const std::string &tex
   std::smatch title_match;
   std::string lang;
   std::string title;
-  if (std::regex_search(text, lang_match, lang_regex)
-      && std::regex_search(text, title_match, title_regex)) {
-    if (lang_match.size() == 2) {
-      lang = lang_match[1];
-    }
-    if (title_match.size() == 2) {
-      title = title_match[1];
-    }
+  if (std::regex_search(text, lang_match, lang_regex) && std::regex_search(text, title_match, title_regex)) {
+    lang = lang_match[1];
+    title = title_match[1];
   } else {
     return;
   }
@@ -486,7 +361,7 @@ void tdscript::Client::process_wiki(std::int64_t chat_id, const std::string &tex
 // TODO: implement https://github.com/lccxz/tg-script/blob/master/tg.rb#L278
 void tdscript::Client::process_wiki(std::int64_t chat_id, const std::string &lang, const std::string &title) {
   std::string host = lang + ".wikipedia.org";
-  send_https_request(host, "/w/api.php?action=parse&format=json&page=" + tdscript::urlencode(title),
+  send_https_request(host, "/w/api.php?action=parse&format=json&page=" + libdns::urlencode(title),
   [this, chat_id, lang, title](const std::vector<std::string>& res) {
     std::string body = res[1];
     rapidjson::Document data; data.Parse(body.c_str());
@@ -498,7 +373,7 @@ void tdscript::Client::process_wiki(std::int64_t chat_id, const std::string &lan
       std::string text = data["parse"]["text"]["*"].GetString();
 
       xmlInitParser();
-      xmlDocPtr doc = xmlParseMemory(text.c_str(), text.length()); // NOLINT(cppcoreguidelines-narrowing-conversions)
+      xmlDocPtr doc = xmlParseMemory(text.c_str(), text.length());
       if (doc == nullptr) {
         fprintf(stderr, "Error: unable to parse string: \"%s\"\n", text.c_str());
         return;
@@ -535,32 +410,6 @@ void tdscript::Client::process_wiki(std::int64_t chat_id, const std::string &lan
   });
 }
 
-void tdscript::initial() {
-  check_environment("HOME");
-  check_environment("TG_API_ID");
-  check_environment("TG_API_HASH");
-  check_environment("TG_DB_ENCRYPTION_KEY");
-  check_environment("TG_PHONE_NUMBER");
-
-  signal(SIGINT, quit);
-  signal(SIGTERM, quit);
-
-  load();
-}
-
-void tdscript::quit(int signum) { stop = true; printf("received the signal: %d\n", signum); }
-
-void tdscript::check_environment(const char *name) {
-  if (std::getenv(name) == nullptr || std::string(std::getenv(name)).empty()) {
-    throw std::invalid_argument(std::string("$").append(name).append(" empty"));
-  }
-}
-
-template<typename T>
-void tdscript::select_one_randomly(const std::vector<T>& arr, const std::function<void(std::size_t)>& f) {
-  if (!arr.empty()) { f(rand() % arr.size()); }  // NOLINT(cert-msc50-cpp)
-}
-
 bool tdscript::xmlCheckEq(const xmlChar *a, const char *b) {
   int i = 0;
   do {
@@ -574,57 +423,6 @@ std::string tdscript::xmlNodeGetContentStr(const xmlNode *node) {
   std::stringstream content;
   content << xmlNodeGetContent(node);
   return content.str();
-}
-
-template<typename Tk, typename Tv>
-std::string tdscript::m2s(std::unordered_map<Tk, Tv> map) {
-  std::string line;
-  for (const auto e : map) {
-    line.append(std::to_string(e.first)).append(":").append(std::to_string(e.second)).append(",");
-  }
-  return line;
-}
-
-template<typename Tk, class Tv>
-std::string tdscript::ma2s(std::unordered_map<Tk, Tv> map) {
-  std::string line;
-  for (const auto e : map) {
-    line.append(std::to_string(e.first)).append(":");
-    std::string block;
-    for (const auto a : e.second) {
-      block.append(std::to_string(a)).append("|");
-    }
-    line.append(block).append(",");
-  }
-  return line;
-}
-
-std::string tdscript::urlencode(const std::string& str) {
-  std::string encode;
-
-  const char *s = str.c_str();
-  for (int i = 0; s[i]; i++) {
-    char ci = s[i];
-    if ((ci >= 'a' && ci <= 'z') ||
-        (ci >= 'A' && ci <= 'Z') ||
-        (ci >= '0' && ci <= '9') ) { // allowed
-      encode.push_back(ci);
-    } else if (ci == ' ') {
-      encode.push_back('+');
-    } else {
-      encode.append("%").append(char_to_hex(ci));
-    }
-  }
-
-  return encode;
-}
-
-std::string tdscript::char_to_hex(char c) {
-  std::uint8_t n = c;
-  std::string res;
-  res.append(HEX_CODES[n / 16]);
-  res.append(HEX_CODES[n % 16]);
-  return res;
 }
 
 void tdscript::save() {
