@@ -11,7 +11,7 @@
 #include <arpa/inet.h>
 
 int main() {
-  assert("abc+123+%E4%B8%AD%E6%96%87" == tdscript::urlencode("abc 123 中文"));
+  assert("abc+123+%E4%B8%AD%E6%96%87" == libdns::urlencode("abc 123 中文"));
 
   auto client = libdns::Client(0);
   tdscript::player_count.clear();
@@ -60,7 +60,7 @@ int main() {
       if (data["query"].IsObject() && data["query"]["random"].IsArray() && data["query"]["random"][0].IsObject()) {
         std::string title = data["query"]["random"][0]["title"].GetString();
         std::cout << "random title: " << title << '\n';
-        client.send_https_request(AF_INET, ip, "en.wikipedia.org", "/w/api.php?action=parse&format=json&page=" + tdscript::urlencode(title),
+        client.send_https_request(AF_INET, ip, "en.wikipedia.org", "/w/api.php?action=parse&format=json&page=" + libdns::urlencode(title),
         [title](const std::vector<std::string>& res) {
           std::string body = res[1];
           rapidjson::Document data; data.Parse(body.c_str());
