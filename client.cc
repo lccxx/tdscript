@@ -4,6 +4,8 @@
 
 #include "libdns/client.h"
 #include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/stringbuffer.h"
 
 #include <iostream>
 #include <regex>
@@ -30,7 +32,7 @@ namespace tdscript {
 
   bool stop = false;
 
-  const std::string SAVE_FILENAME = std::string(std::getenv("HOME")) + std::string("/.tdscript.save");
+  const std::string SAVE_FILENAME = std::string(std::getenv("HOME")) + std::string("/.tdscript-save.json");
   bool save_flag = false;
   bool data_ready = false;
   std::unordered_map<std::int64_t, std::int32_t> player_count;
@@ -430,62 +432,109 @@ void tdscript::save() {
   if (!save_flag) { return; }
   save_flag = false;
 
+  rapidjson::StringBuffer buffer;
+  rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+  writer.StartObject();
+
+  writer.String("player_count");
+  writer.StartObject();
+  for (const auto kv : player_count) {
+    writer.String(std::to_string(kv.first).c_str());
+    writer.Int64(kv.second);
+  }
+  writer.EndObject();
+
+  writer.String("has_owner");
+  writer.StartObject();
+  for (const auto kv : has_owner) {
+    writer.String(std::to_string(kv.first).c_str());
+    writer.Bool(kv.second);
+  }
+  writer.EndObject();
+
+  writer.String("pending_extend_messages");
+  writer.StartObject();
+  for (const auto& kv : pending_extend_messages) {
+    writer.String(std::to_string(kv.first).c_str());
+    writer.StartArray();
+    for (const auto& item : kv.second) {
+      writer.Int64(item);
+    }
+    writer.EndArray();
+  }
+  writer.EndObject();
+
+  writer.String("last_extent_at");
+  writer.StartObject();
+  for (const auto& kv : last_extent_at) {
+    writer.String(std::to_string(kv.first).c_str());
+    writer.Uint64(kv.second);
+  }
+  writer.EndObject();
+
+  writer.String("players_message");
+  writer.StartObject();
+  for (const auto& kv : players_message) {
+    writer.String(std::to_string(kv.first).c_str());
+    writer.Int64(kv.second);
+  }
+  writer.EndObject();
+
+  writer.String("need_extend");
+  writer.StartObject();
+  for (const auto& kv : need_extend) {
+    writer.String(std::to_string(kv.first).c_str());
+    writer.Bool(kv.second);
+  }
+  writer.EndObject();
+
+  writer.EndObject();
+
   std::ofstream ofs;
   ofs.open (SAVE_FILENAME, std::ofstream::out | std::ofstream::binary);
 
-  ofs << m2s(player_count) << '\n';
-  ofs << m2s(has_owner) << '\n';
-  ofs << ma2s(pending_extend_messages) << '\n';
-  ofs << m2s(last_extent_at) << '\n';
-  ofs << m2s(players_message) << '\n';
-  ofs << m2s(need_extend) << '\n';
+  ofs << buffer.GetString() << '\n';
 
   ofs.close();
 }
 
 void tdscript::load() {
-  std::ifstream file(SAVE_FILENAME);
+  std::ifstream file(SAVE_FILENAME, std::ios::binary | std::ios::ate);
   if (!file.good()) {
     data_ready = true;
     return ;
   }
 
-  std::regex kv_regex("([^:]*):([^,]*),");
-  std::regex stick_regex("([^|]*)\\|");
-  std::string line;
-  for (std::int32_t i = 0; std::getline(file, line); i++) {
-    std::cout << "load " << i << ": " << line << '\n';
-    std::smatch kv_match;
-    while (std::regex_search(line, kv_match, kv_regex)) {
-      std::string key = kv_match[1];
-      std::string value = kv_match[2];
-      std::cout << "  key: " << key << ", value: " << value << '\n';
-      if (i == 0) {
-        player_count[std::stoll(key)] = std::stoi(value);
-      }
-      if (i == 1) {
-        has_owner[std::stoll(key)] = std::stoi(value);
-      }
-      if (i == 2) {
-        std::smatch stick_match;
-        while (std::regex_search(value, stick_match, stick_regex)) {
-          std::string a = stick_match[1];
-          std::cout << "    " << a << '\n';
-          pending_extend_messages[std::stoll(key)].push_back(std::stoll(a));
-          value = stick_match.suffix();
+  if (file.is_open()) {
+    auto size = file.tellg();
+    std::string content(size, '\0');
+    file.seekg(0);
+    if(file.read(&content[0], size)) {
+      rapidjson::Document data;
+      data.Parse(content.c_str());
+      for (rapidjson::Value::ConstMemberIterator i = data.MemberBegin(); i != data.MemberEnd(); ++i) {
+        std::string domain = i->name.GetString();
+        for (rapidjson::Value::ConstMemberIterator j = i->value.MemberBegin(); j != i->value.MemberEnd(); ++j) {
+          std::int64_t key = std::stoll(j->name.GetString());
+          if (domain == "player_count") {
+            player_count[key] = j->value.GetInt();
+          } else if (domain == "has_owner") {
+            has_owner[key] = j->value.GetBool();
+          } else if (domain == "pending_extend_messages") {
+            for (rapidjson::SizeType k = 0; k < j->value.Size(); ++k) {
+              pending_extend_messages[key].push_back(j->value[k].GetInt64());
+            }
+          } else if (domain == "last_extent_at") {
+            last_extent_at[key] = j->value.GetUint64();
+          } else if (domain == "players_message") {
+            players_message[key] = j->value.GetInt64();
+          } else if (domain == "need_extend") {
+            need_extend[key] = j->value.GetBool();
+          }
         }
       }
-      if (i == 3) {
-        last_extent_at[std::stoll(key)] = std::stoull(value);
-      }
-      if (i == 4) {
-        players_message[std::stoll(key)] = std::stoll(value);
-      }
-      if (i == 5) {
-        need_extend[std::stoll(key)] = std::stoi(value);
-      }
-      line = kv_match.suffix();
     }
   }
+
   data_ready = true;
 }

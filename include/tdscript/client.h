@@ -206,26 +206,6 @@ namespace tdscript {
 
   bool xmlCheckEq(const xmlChar *a, const char *b);
   std::string xmlNodeGetContentStr(const xmlNode *node);
-
-  template<typename Tk, typename Tv> inline std::string m2s(std::unordered_map<Tk, Tv> map) {
-    std::string line;
-    for (const auto e : map) {
-      line.append(std::to_string(e.first)).append(":").append(std::to_string(e.second)).append(",");
-    }
-    return line;
-  }
-  template<typename Tk, class Tv> inline std::string ma2s(std::unordered_map<Tk, Tv> map) {
-    std::string line;
-    for (const auto e : map) {
-      line.append(std::to_string(e.first)).append(":");
-      std::string block;
-      for (const auto a : e.second) {
-        block.append(std::to_string(a)).append("|");
-      }
-      line.append(block).append(",");
-    }
-    return line;
-  }
 }  // namespace tdscript
 
 #endif  // INCLUDE_TDSCRIPT_CLIENT_H_

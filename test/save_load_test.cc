@@ -2,18 +2,30 @@
 
 #include "tdscript/client.h"
 
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/stringbuffer.h"
+
+#include <sstream>
 #include <cassert>
 
 int main() {
-  assert(tdscript::players_message.empty());
-  assert(0 == tdscript::players_message[-1001098611371]);
-  assert(1 == tdscript::players_message.size());
-  assert(0 == tdscript::players_message[-1001031483587]);
-  assert(2 == tdscript::players_message.size());
+  std::unordered_map<std::int64_t, std::int64_t> data = { { 1, 2}, { 2, 3, }, { 3, 4} };
+  rapidjson::StringBuffer buffer;
+  rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+  writer.StartObject();
+  writer.String("data");
+  writer.StartObject();
+  for (const auto kv : data) {
+    writer.String(std::to_string(kv.first).c_str());
+    writer.Int64(kv.second);
+  }
+  writer.EndObject();
+  writer.EndObject();
+
+  std::cout << buffer.GetString() << '\n';
 
   assert(false == tdscript::data_ready);
   assert(false == tdscript::save_flag);
-
 
   tdscript::pending_extend_messages[-1001098611371].push_back(2739791724545);
   tdscript::pending_extend_messages[-1001098611371].push_back(2737428234241);
