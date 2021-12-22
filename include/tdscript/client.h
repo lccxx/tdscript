@@ -21,6 +21,7 @@
 #include <random>
 #include <iostream>
 #include <csignal>
+#include <sstream>
 
 #include <arpa/inet.h>
 
@@ -204,8 +205,19 @@ namespace tdscript {
    if (!arr.empty()) { f((std::uniform_int_distribution<int>(0, arr.size() - 1))(rand_engine)); }
   }
 
-  bool xmlCheckEq(const xmlChar *a, const char *b);
-  std::string xmlNodeGetContentStr(const xmlNode *node);
+  inline bool xmlCheckEq(const xmlChar *a, const char *b) {
+    int i = 0;
+    do {
+      if (a[i] != b[i]) { return false; }
+      i++;
+    } while (a[i] && b[i]);
+    return true;
+  }
+  inline std::string xmlNodeGetContentStr(const xmlNode *node) {
+    std::stringstream content;
+    content << xmlNodeGetContent(node);
+    return content.str();
+  }
 }  // namespace tdscript
 
 #endif  // INCLUDE_TDSCRIPT_CLIENT_H_

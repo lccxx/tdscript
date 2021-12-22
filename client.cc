@@ -412,21 +412,6 @@ void tdscript::Client::process_wiki(std::int64_t chat_id, const std::string &lan
   });
 }
 
-bool tdscript::xmlCheckEq(const xmlChar *a, const char *b) {
-  int i = 0;
-  do {
-    if (a[i] != b[i]) { return false; }
-    i++;
-  } while (a[i] && b[i]);
-  return true;
-}
-
-std::string tdscript::xmlNodeGetContentStr(const xmlNode *node) {
-  std::stringstream content;
-  content << xmlNodeGetContent(node);
-  return content.str();
-}
-
 void tdscript::save() {
   if (!data_ready) { return; }
   if (!save_flag) { return; }
