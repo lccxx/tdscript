@@ -1,7 +1,6 @@
 // created by lccc 12/04/2020, no copyright
 
 #include "tdscript/client.h"
-#include "libdns/client.h"
 
 #include <iostream>
 #include <cassert>
@@ -9,6 +8,7 @@
 int main() {
   assert("abc+123+%E4%B8%AD%E6%96%87" == libdns::urlencode("abc 123 中文"));
 
+  tdscript::stop = false;
   tdscript::data_ready = true;
   auto client = tdscript::Client(1);
 
@@ -54,6 +54,7 @@ int main() {
           tdscript::player_count[7] = 1;
 
           assert(desc.size() > 19);
+          tdscript::stop = true;
         });
       });
     });
@@ -68,7 +69,7 @@ int main() {
   assert(tdscript::player_count[6] == 0);
   assert(tdscript::player_count[7] == 0);
 
-  for (int i = 0; i < 999; i++) {
+  for (int i = 0; i < 999 || !tdscript::stop; i++) {
     client.dns_client.receive(tdscript::SOCKET_TIME_OUT_MS);
   }
 

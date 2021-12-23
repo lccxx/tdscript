@@ -86,7 +86,7 @@ namespace tdscript {
   inline bool xml_check_eq(const xmlChar *a, const char *b) {
     int i = 0; do { if (a[i] != b[i]) { return false; } i++; } while (a[i] && b[i]);return true;
   }
-  inline std::string xml_get_prop(const xmlNode *node, std::string name) {
+  inline std::string xml_get_prop(const xmlNode *node, const std::string& name) {
     std::stringstream ss; ss << xmlGetProp(node, (xmlChar*)name.c_str()); return ss.str();
   }
   inline std::string xml_get_content(const xmlNode *node) {
