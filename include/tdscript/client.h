@@ -11,6 +11,8 @@
 
 #include "libdns/client.h"
 
+#include "rapidjson/document.h"
+
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 
@@ -22,6 +24,7 @@
 #include <iostream>
 #include <csignal>
 #include <sstream>
+#include <regex>
 
 #include <arpa/inet.h>
 
@@ -69,6 +72,27 @@ namespace tdscript {
     load();
   }
 
+  inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+      return !std::isspace(ch);
+    }));
+  }
+  inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+      return !std::isspace(ch);
+    }).base(), s.end());
+  }
+  inline void trim(std::string &s) { ltrim(s); rtrim(s); }
+  inline bool xml_check_eq(const xmlChar *a, const char *b) {
+    int i = 0; do { if (a[i] != b[i]) { return false; } i++; } while (a[i] && b[i]);return true;
+  }
+  inline std::string xml_get_content(const xmlNode *node) {
+    std::stringstream content; content << xmlNodeGetContent(node); return content.str();
+  }
+  inline void xml_each_node(const xmlNode* node, const std::function<bool(const xmlNode* node)>& f) {
+    for (; node; node = node->next ? node->next : node->children) { if (f(node)) { break; } }
+  }
+
   class Client {
    private:
     typedef td::td_api::object_ptr<td::td_api::Object> tdo_ptr;
@@ -92,6 +116,8 @@ namespace tdscript {
       td_client_manager = std::make_unique<td::ClientManager>();
       client_id = td_client_manager->create_client_id();
       send_request(td::td_api::make_object<td::td_api::getOption>("version"));
+
+      dns_client = libdns::Client(log_verbosity_level ? 1 : 0);
     }
     Client() : Client(0) {};
 
@@ -196,27 +222,119 @@ namespace tdscript {
     void process_message(td::td_api::object_ptr<td::td_api::message> msg);
     void process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text, const std::string& link);
     void process_werewolf(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text, const std::string& link);
-    void process_wiki(std::int64_t chat_id, const std::string &text);
-    void process_wiki(std::int64_t chat_id, const std::string &lang, const std::string &title);
+
+    inline void wiki_get_random_title(const std::string& lang, const std::function<void(std::string)>& f) {
+      std::string host = lang + ".wikipedia.org";
+      std::string path = "/w/api.php?action=query&format=json&list=random&rnnamespace=0";
+      send_https_request(host, path, [host, f](const std::vector<std::string> &res) {
+        rapidjson::Document data;
+        data.Parse(res[1].c_str());
+        if (data.HasMember("query")) {
+          f(data["query"]["random"][0]["title"].GetString());
+        }
+      });
+    }
+
+    inline void wiki_get_content(const std::string& lang, const std::string& title, const std::function<void(std::string)>& f) {
+      std::string host = lang + ".wikipedia.org";
+      std::string path = "/w/api.php?action=parse&format=json&page=" + libdns::urlencode(title);
+      send_https_request(host, path, [f, title](const std::vector<std::string>& res){
+        std::string body = res[1];
+        rapidjson::Document data; data.Parse(body.c_str());
+        if (data.HasMember("error")) {
+          f(data["error"]["info"].GetString());
+        } else if (data.HasMember("parse")) {
+          std::string text = data["parse"]["text"]["*"].GetString();
+
+          xmlInitParser();
+          xmlDocPtr doc = xmlParseMemory(text.c_str(), text.length());
+          if (doc == nullptr) {
+            fprintf(stderr, "Error: unable to parse string: \"%s\"\n", text.c_str());
+            return;
+          }
+
+          // xmlDocDump(stdout, doc);
+          std::string article_desc;
+          std::vector<std::string> desc_find_kws = { "。", " is ", " was ", "." };
+          xmlNode *root = xmlDocGetRootElement(doc);
+          for (xmlNode *node = root; node; node = node->next ? node->next : node->children) {
+            std::cout << "node name: '" << node->name << "'\n";
+            if (xml_check_eq(node->name, "p")) {
+              std::string content = xml_get_content(node);
+              trim(content);
+              for (const auto& kw : desc_find_kws) {
+                if (content.find(kw) != std::string::npos) {
+                  article_desc = content;
+                  break;
+                }
+              }
+              std::cout << "content: '" << content << "'\n";
+              // if content is "xxx refer to:"
+              if (content[content.length() - 1] == ':') {
+                xml_each_node(node, [&content, &article_desc](auto next_node) {
+                  std::cout << "next node name: '" << next_node->name << "'\n";
+                  if (tdscript::xml_check_eq(next_node->name, "ul")) {
+                    content.append("\n").append(xml_get_content(next_node));
+                    article_desc = content;
+                    return true;
+                  }
+                  return false;
+                });
+                break;
+              }
+            }
+            if (!article_desc.empty()) {
+              break;
+            }
+          }
+
+          article_desc = std::regex_replace(article_desc, std::regex(R"(\[\d+\])"), "");
+          trim(article_desc);
+          std::cout << "'" << title << "': '" << article_desc << "'\n";
+
+          f(article_desc);
+
+          xmlFreeDoc(doc);
+          xmlCleanupParser();
+        }
+      });
+    }
+
+    inline void process_wiki(std::int64_t chat_id, const std::string &text) {
+      std::regex lang_regex("^\\/(.{0,2})wiki");
+      std::regex title_regex("wiki(.*)$");
+      std::smatch lang_match;
+      std::smatch title_match;
+      std::string lang;
+      std::string title;
+      if (std::regex_search(text, lang_match, lang_regex) && std::regex_search(text, title_match, title_regex)) {
+        lang = lang_match[1];
+        title = title_match[1];
+        trim(title);
+      } else {
+        return;
+      }
+      if (lang.empty()) {
+        lang = "en";
+      }
+      std::string host = lang + ".wikipedia.org";
+      if (title.empty()) {
+        wiki_get_random_title(lang, [this, chat_id, lang](auto title) {
+          process_wiki(chat_id, lang, title);
+        });
+      } else {
+        process_wiki(chat_id, lang, title);
+      }
+    }
+
+    inline void process_wiki(std::int64_t chat_id, const std::string &lang, const std::string &title) {
+      wiki_get_content(lang, title, [this, chat_id](auto desc) { send_text(chat_id, desc, true); });
+    }
   };  // class Client
 
   template<typename T>
   inline void select_one_randomly(const std::vector<T>& arr, const std::function<void(std::size_t)>& f) {
-   if (!arr.empty()) { f((std::uniform_int_distribution<int>(0, arr.size() - 1))(rand_engine)); }
-  }
-
-  inline bool xmlCheckEq(const xmlChar *a, const char *b) {
-    int i = 0;
-    do {
-      if (a[i] != b[i]) { return false; }
-      i++;
-    } while (a[i] && b[i]);
-    return true;
-  }
-  inline std::string xmlNodeGetContentStr(const xmlNode *node) {
-    std::stringstream content;
-    content << xmlNodeGetContent(node);
-    return content.str();
+    if (!arr.empty()) { f((std::uniform_int_distribution<int>(0, arr.size() - 1))(rand_engine)); }
   }
 }  // namespace tdscript
 
