@@ -86,8 +86,11 @@ namespace tdscript {
   inline bool xml_check_eq(const xmlChar *a, const char *b) {
     int i = 0; do { if (a[i] != b[i]) { return false; } i++; } while (a[i] && b[i]);return true;
   }
+  inline std::string xml_get_prop(const xmlNode *node, std::string name) {
+    std::stringstream ss; ss << xmlGetProp(node, (xmlChar*)name.c_str()); return ss.str();
+  }
   inline std::string xml_get_content(const xmlNode *node) {
-    std::stringstream content; content << xmlNodeGetContent(node); return content.str();
+    std::stringstream ss; ss << xmlNodeGetContent(node); return ss.str();
   }
   inline void xml_each_node(const xmlNode* node, const std::function<bool(const xmlNode* node)>& f) {
     for (; node; node = node->next ? node->next : node->children) { if (f(node)) { break; } }
@@ -238,7 +241,7 @@ namespace tdscript {
     inline void wiki_get_content(const std::string& lang, const std::string& title, const std::function<void(std::string)>& f) {
       std::string host = lang + ".wikipedia.org";
       std::string path = "/w/api.php?action=parse&format=json&page=" + libdns::urlencode(title);
-      send_https_request(host, path, [f, title](const std::vector<std::string>& res){
+      send_https_request(host, path, [this, f, lang, title](const std::vector<std::string>& res){
         std::string body = res[1];
         rapidjson::Document data; data.Parse(body.c_str());
         if (data.HasMember("error")) {
@@ -253,12 +256,16 @@ namespace tdscript {
             return;
           }
 
-          // xmlDocDump(stdout, doc);
+          xmlDocDump(stdout, doc);
           std::string article_desc;
           std::vector<std::string> desc_find_kws = { "。", " is ", " was ", "." };
           xmlNode *root = xmlDocGetRootElement(doc);
           for (xmlNode *node = root; node; node = node->next ? node->next : node->children) {
-            std::cout << "node name: '" << node->name << "'\n";
+            std::string class_name = xml_get_prop(node, "class");
+            std::cout << "node name: '" << node->name << (class_name.empty() ? "" : "." + class_name) << "'\n";
+            if (xml_check_eq(node->name, "div") && class_name == "redirectMsg") {
+              return wiki_get_content(lang, data["parse"]["links"][0]["*"].GetString(), f);
+            }
             if (xml_check_eq(node->name, "p")) {
               std::string content = xml_get_content(node);
               trim(content);

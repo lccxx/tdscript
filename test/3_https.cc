@@ -10,7 +10,7 @@ int main() {
   assert("abc+123+%E4%B8%AD%E6%96%87" == libdns::urlencode("abc 123 中文"));
 
   tdscript::data_ready = true;
-  auto client = tdscript::Client(0);
+  auto client = tdscript::Client(1);
 
   client.send_https_request("google.com", "/?1", [](const std::vector<std::string>& res) {
     if (res[1].find("/?1") != std::string::npos) {
@@ -44,13 +44,13 @@ int main() {
     client.wiki_get_content(lang, title, [&client, lang](auto content) {
       tdscript::player_count[5] = 1;
 
-      client.wiki_get_content(lang, "bot", [&client, lang](auto desc) {
+      client.wiki_get_content(lang, "Collembola", [&client, lang](auto desc) {
         tdscript::player_count[6] = 1;
 
         assert(!desc.empty());
         assert(desc.size() > 19);
 
-        client.wiki_get_content(lang, "Civil War", [](auto desc) {
+        client.wiki_get_content(lang, "bot", [](auto desc) {
           tdscript::player_count[7] = 1;
 
           assert(desc.size() > 19);
