@@ -177,10 +177,11 @@ namespace tdscript {
     inline void send_reply(std::int64_t chat_id, std::int64_t reply_id, std::string text) {
       send_text(chat_id, reply_id, std::move(text), false);
     }
-    inline void send_start(std::int64_t chat_id, std::int64_t bot_id, const std::string& link) {
-      send_start(chat_id, bot_id, link, 9);
+    void send_start(std::int64_t chat_id);
+    inline void send_join(std::int64_t chat_id, std::int64_t bot_id, const std::string& link) {
+      send_join(chat_id, bot_id, link, 9);
     }
-    void send_start(std::int64_t chat_id, std::int64_t bot_id, const std::string& link, int limit);
+    void send_join(std::int64_t chat_id, std::int64_t bot_id, const std::string& link, int limit);
     void send_extend(std::int64_t chat_id);
     inline void delete_messages(std::int64_t chat_id, std::vector<std::int64_t> message_ids) {
       send_request(td::td_api::make_object<td::td_api::deleteMessages>(chat_id, std::move(message_ids), true));

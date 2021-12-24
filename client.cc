@@ -14,6 +14,7 @@
 
 namespace tdscript {
   const std::int64_t USER_ID_WEREWOLF = 175844556;
+  const std::string START_TEXT = "/startchaos@werewolfbot";
   const std::int32_t EXTEND_TIME = 123;
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ") + std::to_string(EXTEND_TIME);
   const std::vector<std::vector<std::int64_t>> STICKS_STARTING = {
@@ -41,9 +42,12 @@ namespace tdscript {
   std::unordered_map<std::int64_t, std::uint64_t> last_extent_at;
   std::unordered_map<std::int64_t, std::int64_t> players_message;
   std::unordered_map<std::int64_t, std::uint8_t> need_extend;
+  std::unordered_map<std::int64_t, std::uint8_t> started;
+  std::unordered_map<std::int64_t, std::uint64_t> last_done_at;
 
   std::mt19937 rand_engine = std::mt19937((std::random_device())());
 
+  std::unordered_map<std::int64_t, std::uint8_t> last_start_at;
   std::unordered_map<std::int64_t, std::vector<std::string>> at_list;  // the '@' list
   std::unordered_map<std::int64_t, std::vector<std::int64_t>> player_ids;
   bool werewolf_bot_warning = false;
@@ -52,7 +56,18 @@ namespace tdscript {
   std::unordered_map<std::time_t, std::vector<std::function<void()>>> task_queue;
 }
 
-void tdscript::Client::send_start(std::int64_t chat_id, std::int64_t bot_id, const std::string& link, int limit) {
+void tdscript::Client::send_start(std::int64_t chat_id) {
+  if (werewolf_bot_warning) { return; }
+  if (need_extend.at(chat_id)) { return; }
+  if (started.at(chat_id)) { return; }
+  if (last_done_at.count(chat_id) > 0 && std::time(nullptr) - last_done_at.at(chat_id) < 99) { return; }
+  if (last_start_at.count(chat_id) > 0 && std::time(nullptr) - last_start_at.at(chat_id) < 9) { return; }
+  last_start_at[chat_id] = std::time(nullptr);
+
+  send_text(chat_id, START_TEXT);
+}
+
+void tdscript::Client::send_join(std::int64_t chat_id, std::int64_t bot_id, const std::string& link, int limit) {
   if (werewolf_bot_warning) { return; }
   if (has_owner.at(chat_id)) { return; }
   if (!need_extend.at(chat_id)) { return; }
@@ -72,9 +87,9 @@ void tdscript::Client::send_start(std::int64_t chat_id, std::int64_t bot_id, con
   send_message->parameter_ = param;
   send_request(std::move(send_message));
 
-  // add to the task queue, resend after 3 seconds, limit 9(default)
-  task_queue[std::time(nullptr) + 3].push_back([this, chat_id, bot_id, link, limit]() {
-    send_start(chat_id, bot_id, link, limit - 1);
+  // add to the task queue, resend after 5 seconds, limit 9(default)
+  task_queue[std::time(nullptr) + 5].push_back([this, chat_id, bot_id, link, limit]() {
+    send_join(chat_id, bot_id, link, limit - 1);
   });
 }
 
@@ -231,8 +246,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
   }
 
   const std::regex starting_regex("游戏启动中");
-  std::smatch starting_match;
-  if (std::regex_search(text, starting_match, starting_regex)) {
+  if (std::regex_search(text, starting_regex)) {
     for (const auto& at : at_list[chat_id]) { send_text(chat_id, at); }
     select_one_randomly(STICKS_STARTING, [this, chat_id](std::size_t i) {
       while (true) {
@@ -254,6 +268,10 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
         return forward_message(chat_id, from_chat_id, from_msg_id);
       }
     });
+
+    if (user_id == USER_ID_WEREWOLF) {
+      started[chat_id] = true;
+    }
   }
 
   save_flag = true;
@@ -267,7 +285,7 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
 
   if (user_id && !link.empty()) {
     need_extend[chat_id] = 1;
-    send_start(chat_id, user_id, link);
+    send_join(chat_id, user_id, link);
   }
 
   const std::regex players_regex("^#players: (\\d+)");
@@ -292,37 +310,39 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
 
   if (players_message.count(chat_id) > 0 && msg_id == players_message.at(chat_id)) {
     const std::regex owner_regex("lccc");
-    std::smatch owner_match;
-    if (std::regex_search(text, owner_match, owner_regex)) {
+    if (std::regex_search(text, owner_regex)) {
       has_owner[chat_id] = 1;
     }
   }
 
   const std::regex remain_regex("还有 1 分钟|还剩 \\d+ 秒");
-  std::smatch remain_match;
-  if (std::regex_search(text, remain_match, remain_regex)) {
+  if (std::regex_search(text, remain_regex)) {
     delete_messages(chat_id, pending_extend_messages[chat_id]);
     pending_extend_messages[chat_id].clear();
     pending_extend_messages[chat_id].push_back(msg_id);
   }
 
   const std::regex remain_reply_regex("现在又多了 123 秒时间");
-  std::smatch remain_reply_match;
-  if (std::regex_search(text, remain_reply_match, remain_reply_regex)) {
+  if (std::regex_search(text, remain_reply_regex)) {
     pending_extend_messages[chat_id].push_back(msg_id);
     delete_messages(chat_id, pending_extend_messages[chat_id]);
     pending_extend_messages[chat_id].clear();
   }
 
   const std::regex cancel_regex("游戏取消|目前没有进行中的游戏|游戏启动中|夜幕降临|第\\d+天");
-  std::smatch cancel_match;
-  if (std::regex_search(text, cancel_match, cancel_regex)) {
+  if (std::regex_search(text, cancel_regex)) {
     player_count[chat_id] = 0;
     has_owner[chat_id] = 0;
     pending_extend_messages[chat_id].clear();
     last_extent_at[chat_id] = 0;
     players_message[chat_id] = 0;
     need_extend[chat_id] = 0;
+  }
+
+  const std::regex done_regex("游戏进行了：\\d+:\\d+:\\d+");
+  if (std::regex_search(text, done_regex)) {
+    last_done_at[chat_id] = std::time(nullptr);
+    started[chat_id] = 0;
   }
 }
 
@@ -387,6 +407,22 @@ void tdscript::save() {
   }
   writer.EndObject();
 
+  writer.String("started");
+  writer.StartObject();
+  for (const auto& kv : started) {
+    writer.String(std::to_string(kv.first).c_str());
+    writer.Bool(kv.second);
+  }
+  writer.EndObject();
+
+  writer.String("last_done_at");
+  writer.StartObject();
+  for (const auto& kv : last_done_at) {
+    writer.String(std::to_string(kv.first).c_str());
+    writer.Uint64(kv.second);
+  }
+  writer.EndObject();
+
   writer.EndObject();
 
   std::ofstream ofs;
@@ -429,6 +465,10 @@ void tdscript::load() {
             players_message[key] = j->value.GetInt64();
           } else if (domain == "need_extend") {
             need_extend[key] = j->value.GetBool();
+          } else if (domain == "started") {
+            started[key] = j->value.GetBool();
+          } else if (domain == "last_done_at") {
+            last_done_at[key] = j->value.GetUint64();
           }
         }
       }

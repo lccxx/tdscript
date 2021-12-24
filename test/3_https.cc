@@ -8,6 +8,9 @@
 int main() {
   assert("abc+123+%E4%B8%AD%E6%96%87" == libdns::urlencode("abc 123 中文"));
 
+  assert(std::regex_search("xxx.yyy", std::regex("xxx")));
+  assert(!std::regex_search("yyy.zzz", std::regex("xxx")));
+
   tdscript::stop = false;
   tdscript::data_ready = true;
   auto client = tdscript::Client(1);
@@ -41,19 +44,19 @@ int main() {
     tdscript::player_count[4] = 1;
     std::cout << "random title: " << title << '\n';
 
-    client.wiki_get_content(lang, title, [&client, lang](auto content) {
+    client.wiki_get_content(lang, title, [&client, lang](auto desc) {
+      assert(!desc.empty());
       tdscript::player_count[5] = 1;
 
       client.wiki_get_content(lang, "Collembola", [&client, lang](auto desc) {
-        tdscript::player_count[6] = 1;
-
         assert(!desc.empty());
         assert(desc.size() > 19);
+        tdscript::player_count[6] = 1;
 
         client.wiki_get_content(lang, "bot", [](auto desc) {
+          assert(desc.size() > 19);
           tdscript::player_count[7] = 1;
 
-          assert(desc.size() > 19);
           tdscript::stop = true;
         });
       });
@@ -69,7 +72,7 @@ int main() {
   assert(tdscript::player_count[6] == 0);
   assert(tdscript::player_count[7] == 0);
 
-  for (int i = 0; i < 999 || !tdscript::stop; i++) {
+  for (int i = 0; i < 999 && !tdscript::stop; i++) {
     client.dns_client.receive(tdscript::SOCKET_TIME_OUT_MS);
   }
 
