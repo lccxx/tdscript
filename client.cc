@@ -270,7 +270,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
     });
 
     if (user_id == USER_ID_WEREWOLF) {
-      started[chat_id] = true;
+      started[chat_id] = 1;
     }
   }
 
