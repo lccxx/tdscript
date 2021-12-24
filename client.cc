@@ -114,6 +114,11 @@ void tdscript::Client::process_tasks(std::time_t time) {
   }
   task_queue[time].clear();
 
+  // check the /start
+  for (const auto kv : last_done_at) {
+    send_start(kv.first);
+  }
+
   // confirm the /extend
   for (const auto kv : player_count) {
     auto chat_id = kv.first;
