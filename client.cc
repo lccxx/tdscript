@@ -344,7 +344,7 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
     need_extend[chat_id] = 0;
   }
 
-  const std::regex done_regex("游戏进行了：\\d+:\\d+:\\d+");
+  const std::regex done_regex("游戏取消|游戏进行了：\\d+:\\d+:\\d+");
   if (std::regex_search(text, done_regex)) {
     last_done_at[chat_id] = std::time(nullptr);
     started[chat_id] = 0;
