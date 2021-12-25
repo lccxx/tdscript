@@ -98,7 +98,7 @@ void tdscript::Client::send_extend(std::int64_t chat_id) {
   if (!need_extend.at(chat_id)) { return; }
   if (!has_owner.at(chat_id)) { return; }
   if (player_count.at(chat_id) >= 5) { return; }
-  if (pending_extend_messages.count(chat_id) != 0 && pending_extend_messages[chat_id].size() > 10) { return; }
+  if (pending_extend_messages.count(chat_id) != 0 && pending_extend_messages[chat_id].size() > 9) { return; }
   if (last_extent_at.count(chat_id) > 0 && std::time(nullptr) - last_extent_at.at(chat_id) < 5) { return; }
   last_extent_at[chat_id] = std::time(nullptr);
   send_text(chat_id, EXTEND_TEXT);
