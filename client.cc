@@ -431,7 +431,7 @@ void tdscript::save() {
   writer.EndObject();
 
   std::ofstream ofs;
-  ofs.open (SAVE_FILENAME, std::ofstream::out | std::ofstream::binary);
+  ofs.open(SAVE_FILENAME, std::ofstream::out | std::ofstream::binary);
 
   ofs << buffer.GetString() << '\n';
 
