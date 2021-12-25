@@ -265,9 +265,10 @@ namespace tdscript {
             std::string class_name = xml_get_prop(node, "class");
             std::cout << "node: '" << node->name << (class_name.empty() ? "" : "." + class_name) << "'\n";
             if (xml_check_eq(node->name, "div") && class_name == "redirectMsg") {
+              std::cout << "node content: '" << xml_get_content(node) << "'\n";
               xml_each_node(node, [](auto next_node) {
                 std::string node_title = xml_get_prop(next_node, "title");
-                std::cout << "node: '" << next_node->name << (node_title.empty() ? "" : "[title='" + node_title + "']") << "'\n";
+                std::cout << "next_node: '" << next_node->name << (node_title.empty() ? "" : "[title='" + node_title + "']") << "'\n";
                 return false;
               });
               return wiki_get_content(lang, xml_get_content(node), f);
