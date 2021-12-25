@@ -227,8 +227,8 @@ namespace tdscript {
     void process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text, const std::string& link);
     void process_werewolf(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text, const std::string& link);
 
-    inline void wiki_get_random_title(const std::string& lang, const std::function<void(std::string)>& f) {
-      std::string host = lang + ".wikipedia.org";
+    inline void wiki_get_random_title(const std::string& lang, const std::string& wd, const std::function<void(std::string)>& f) {
+      std::string host = lang + wd;
       std::string path = "/w/api.php?action=query&format=json&list=random&rnnamespace=0";
       send_https_request(host, path, [host, f](const std::vector<std::string> &res) {
         rapidjson::Document data;
@@ -239,12 +239,70 @@ namespace tdscript {
       });
     }
 
-    inline void wiki_get_content(const std::string& lang, const std::string& title, const std::function<void(std::string)>& f) {
-      std::string host = lang + ".wikipedia.org";
+    inline void dict_get_random_title(const std::string& lang, const std::function<void(std::string)>& f) {
+      wiki_get_random_title(lang, ".wiktionary.org", f);
+    }
+
+    inline void wiki_get_random_title(const std::string& lang, const std::function<void(std::string)>& f) {
+      wiki_get_random_title(lang, ".wikipedia.org", f);
+    }
+
+    inline void wiki_get_data(const std::string& lang, const std::string& title, const std::string& wd, const std::function<void(std::string)>& f) {
+      std::string host = lang + wd;
       std::string path = "/w/api.php?action=parse&format=json&page=" + libdns::urlencode(title);
-      send_https_request(host, path, [this, f, lang, title](const std::vector<std::string>& res){
-        std::string body = res[1];
-        rapidjson::Document data; data.Parse(body.c_str());
+      send_https_request(host, path, [f](const std::vector<std::string>& res){ f(res[1]); });
+    }
+
+    inline void dict_get_content(const std::string& lang, const std::string& title, const std::function<void(std::string)>& f) {
+      wiki_get_data(lang, title, ".wiktionary.org", [f, lang, title](const std::string& res_body) {
+        rapidjson::Document data; data.Parse(res_body.c_str());
+        if (data.HasMember("error")) {
+          f(data["error"]["info"].GetString());
+        } else if (data.HasMember("parse")) {
+          std::string text = data["parse"]["text"]["*"].GetString();
+
+          xmlInitParser();
+          xmlDocPtr doc = xmlParseMemory(text.c_str(), text.length());
+          if (doc == nullptr) {
+            fprintf(stderr, "Error: unable to parse string: \"%s\"\n", text.c_str());
+            return;
+          }
+
+          xmlDocDump(stdout, doc);
+          std::string desc;
+          xmlNode *root = xmlDocGetRootElement(doc);
+          xml_each_node(root, [&desc](auto node) {
+            std::string node_id = xml_get_prop(node, "id");
+            std::cout << "node: '" << node->name << (node_id.empty() ? "" : "#" + node_id) << "'\n";
+
+            if (node_id == "English") {
+              std::vector<std::string> functions = {
+                  "Noun", "Verb", "Adjective", "Adverb", "Pronoun", "Preposition", "Conjunction", "Interjection", "Determiner" };
+              xml_each_node(node, [](auto i_node) {
+                std::string node_id = xml_get_prop(i_node, "id");
+                std::cout << "i_node: '" << i_node->name << (node_id.empty() ? "" : "#" + node_id) << "'\n";
+                return false;
+              });
+              return true;
+            }
+
+            return false;
+          });
+
+          trim(desc);
+          std::cout << "'" << title << "': '" << desc << "'\n";
+
+          f(desc);
+
+          xmlFreeDoc(doc);
+          xmlCleanupParser();
+        }
+      });
+    };
+
+    inline void wiki_get_content(const std::string& lang, const std::string& title, const std::function<void(std::string)>& f) {
+      wiki_get_data(lang, title, ".wikipedia.org", [this, f, lang, title](const std::string& res_body) {
+        rapidjson::Document data; data.Parse(res_body.c_str());
         if (data.HasMember("error")) {
           f(data["error"]["info"].GetString());
         } else if (data.HasMember("parse")) {
