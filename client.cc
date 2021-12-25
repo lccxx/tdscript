@@ -47,7 +47,7 @@ namespace tdscript {
 
   std::mt19937 rand_engine = std::mt19937((std::random_device())());
 
-  std::unordered_map<std::int64_t, std::uint8_t> last_start_at;
+  std::unordered_map<std::int64_t, std::uint64_t> last_start_at;
   std::unordered_map<std::int64_t, std::vector<std::string>> at_list;  // the '@' list
   std::unordered_map<std::int64_t, std::vector<std::int64_t>> player_ids;
   bool werewolf_bot_warning = false;
@@ -98,7 +98,7 @@ void tdscript::Client::send_extend(std::int64_t chat_id) {
   if (!need_extend.at(chat_id)) { return; }
   if (!has_owner.at(chat_id)) { return; }
   if (player_count.at(chat_id) >= 5) { return; }
-  if (pending_extend_messages.count(chat_id) != 0 && pending_extend_messages[chat_id].size() > 10) { return; }
+  if (pending_extend_messages.count(chat_id) != 0 && pending_extend_messages[chat_id].size() > 9) { return; }
   if (last_extent_at.count(chat_id) > 0 && std::time(nullptr) - last_extent_at.at(chat_id) < 5) { return; }
   last_extent_at[chat_id] = std::time(nullptr);
   send_text(chat_id, EXTEND_TEXT);
@@ -344,7 +344,7 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
     need_extend[chat_id] = 0;
   }
 
-  const std::regex done_regex("游戏进行了：\\d+:\\d+:\\d+");
+  const std::regex done_regex("游戏取消|游戏进行了：\\d+:\\d+:\\d+");
   if (std::regex_search(text, done_regex)) {
     last_done_at[chat_id] = std::time(nullptr);
     started[chat_id] = 0;
@@ -431,7 +431,7 @@ void tdscript::save() {
   writer.EndObject();
 
   std::ofstream ofs;
-  ofs.open (SAVE_FILENAME, std::ofstream::out | std::ofstream::binary);
+  ofs.open(SAVE_FILENAME, std::ofstream::out | std::ofstream::binary);
 
   ofs << buffer.GetString() << '\n';
 
