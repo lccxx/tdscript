@@ -6,8 +6,13 @@ add_subdirectory(lib/libdns)
 
 set(OPENSSL_CRYPTO_LIBRARY crypto)
 set(OPENSSL_SSL_LIBRARY ssl)
-
 add_subdirectory(lib/td)
+
+set(LIBXML2_WITH_ZLIB OFF)
+set(LIBXML2_WITH_PYTHON OFF)
+set(LIBXML2_WITH_FTP OFF)
+set(LIBXML2_WITH_HTTP OFF)
+set(LIBXML2_WITH_TESTS OFF)
 add_subdirectory(lib/libxml2)
 
 option(WITH_TESTS "make with tests" ON)
@@ -50,6 +55,7 @@ if (WITH_TESTS)
 
   add_ctest(test/1_client.cc)
   add_ctest(test/2_save_load.cc)
-  add_ctest(test/3_https.cc)
-  add_ctest(test/4_wiktionary.cc)
+  add_ctest(test/3_xml.cc)
+  add_ctest(test/4_https.cc)
+  add_ctest(test/5_wiktionary.cc)
 endif (WITH_TESTS)

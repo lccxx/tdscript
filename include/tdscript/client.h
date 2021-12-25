@@ -13,7 +13,7 @@
 
 #include "rapidjson/document.h"
 
-#include <libxml/parser.h>
+#include "libxml/HTMLparser.h"
 #include <libxml/tree.h>
 
 #include <stdexcept>
@@ -25,6 +25,7 @@
 #include <csignal>
 #include <sstream>
 #include <regex>
+#include <queue>
 
 #include <arpa/inet.h>
 
@@ -92,8 +93,47 @@ namespace tdscript {
   inline std::string xml_get_content(const xmlNode *node) {
     std::stringstream ss; ss << xmlNodeGetContent(node); return ss.str();
   }
-  inline void xml_each_node(const xmlNode* node, const std::function<bool(const xmlNode* node)>& f) {
-    for (; node; node = node->next ? node->next : node->children) { if (f(node)) { break; } }
+
+  // breadth-first search
+  inline void xml_each_next(const xmlNode* node, const std::function<bool(const xmlNode* node)>& f) {
+    std::queue<const xmlNode*> nodes;
+    do {
+      if (f(node)) {
+        return;
+      }
+      if (node->children) {
+        nodes.push(node);
+      }
+      if (node->next) {
+        node = node->next;
+      } else if (!nodes.empty()) {
+        node = nodes.front()->children;
+        nodes.pop();
+      } else {
+        break;
+      }
+    } while(true);
+  }
+
+  // depth-first search
+  inline void xml_each_child(const xmlNode* node, const std::function<bool(const xmlNode* node)>& f) {
+    std::deque<const xmlNode*> nodes;
+    do {
+      if (f(node)) {
+        return;
+      }
+      if (node->next) {
+        nodes.push_back(node);
+      }
+      if (node->children) {
+        node = node->children;
+      } else if (!nodes.empty()) {
+        node = nodes.back()->next;
+        nodes.pop_back();
+      } else {
+        break;
+      }
+    } while(true);
   }
 
   class Client {
@@ -262,7 +302,7 @@ namespace tdscript {
           std::string text = data["parse"]["text"]["*"].GetString();
 
           xmlInitParser();
-          xmlDocPtr doc = xmlParseMemory(text.c_str(), text.length());
+          xmlDocPtr doc = xmlParseMemory(text.c_str(), (int)text.length());
           if (doc == nullptr) {
             fprintf(stderr, "Error: unable to parse string: \"%s\"\n", text.c_str());
             return;
@@ -271,14 +311,15 @@ namespace tdscript {
           xmlDocDump(stdout, doc);
           std::string desc;
           xmlNode *root = xmlDocGetRootElement(doc);
-          xml_each_node(root, [&desc](auto node) {
+          xml_each_next(root, [&desc](auto node) {
             std::string node_id = xml_get_prop(node, "id");
             std::cout << "node: '" << node->name << (node_id.empty() ? "" : "#" + node_id) << "'\n";
 
             if (node_id == "English") {
               std::vector<std::string> functions = {
-                  "Noun", "Verb", "Adjective", "Adverb", "Pronoun", "Preposition", "Conjunction", "Interjection", "Determiner" };
-              xml_each_node(node, [](auto i_node) {
+                  "Noun", "Verb", "Adjective", "Adverb", "Pronoun", "Preposition", "Conjunction", "Interjection",
+                  "Determiner"};
+              xml_each_next(node, [](auto i_node) {
                 std::string node_id = xml_get_prop(i_node, "id");
                 std::cout << "i_node: '" << i_node->name << (node_id.empty() ? "" : "#" + node_id) << "'\n";
                 return false;
@@ -309,62 +350,64 @@ namespace tdscript {
           std::string text = data["parse"]["text"]["*"].GetString();
 
           xmlInitParser();
-          xmlDocPtr doc = xmlParseMemory(text.c_str(), text.length());
+          xmlDocPtr doc = xmlParseMemory(text.c_str(), (int)text.length());
           if (doc == nullptr) {
             fprintf(stderr, "Error: unable to parse string: \"%s\"\n", text.c_str());
             return;
           }
-
           xmlDocDump(stdout, doc);
-          std::string article_desc;
+
           std::vector<std::string> desc_find_kws = { "。", " is ", " was ", "." };
-          xmlNode *root = xmlDocGetRootElement(doc);
-          for (xmlNode *node = root; node; node = node->next ? node->next : node->children) {
-            std::string class_name = xml_get_prop(node, "class");
-            std::cout << "node: '" << node->name << (class_name.empty() ? "" : "." + class_name) << "'\n";
-            if (xml_check_eq(node->name, "div") && class_name == "redirectMsg") {
-              std::cout << "node content: '" << xml_get_content(node) << "'\n";
-              xml_each_node(node, [](auto next_node) {
-                std::string node_title = xml_get_prop(next_node, "title");
-                std::cout << "next_node: '" << next_node->name << (node_title.empty() ? "" : "[title='" + node_title + "']") << "'\n";
-                return false;
+          std::string article_desc;
+          xml_each_next(xmlDocGetRootElement(doc)->children, [this, lang, f, desc_find_kws, &article_desc](auto node) {
+            std::string node_class = xml_get_prop(node, "class");
+            std::cout << "node: '" << node->name << (node_class.empty() ? "" : "." + node_class) << "'\n";
+            if (xml_check_eq(node->name, "div") && node_class == "redirectMsg") {
+              xml_each_child(node->children, [this, lang, f](auto child) {
+                if (xml_check_eq(child->name, "a")) {
+                  std::string redirect_title = xml_get_prop(child, "title");
+                  std::cout << "redirect title: " << redirect_title << '\n';
+                  wiki_get_content(lang, redirect_title, f);
+                  return 1;
+                }
+                return 0;
               });
-              return wiki_get_content(lang, xml_get_content(node), f);
+              return 1;
             }
             if (xml_check_eq(node->name, "p")) {
-              std::string content = xml_get_content(node);
-              trim(content);
+              std::string content = xml_get_content(node); trim(content);
+              std::cout << "content: '" << content << "'\n";
+              if (content[content.length() - 1] == ':') {  // content is "xxx refer to:"
+                xml_each_next(node, [&content, &article_desc](auto next_node) {
+                  std::cout << "next node name: '" << next_node->name << "'\n";
+                  if (tdscript::xml_check_eq(next_node->name, "ul")) {
+                    content.append("\n").append(xml_get_content(next_node));
+                    article_desc = content; trim(article_desc);
+                    return 1;
+                  }
+                  return 0;
+                });
+                return 1;
+              }
               for (const auto& kw : desc_find_kws) {
                 if (content.find(kw) != std::string::npos) {
                   article_desc = content;
                   break;
                 }
               }
-              std::cout << "content: '" << content << "'\n";
-              // if content is "xxx refer to:"
-              if (content[content.length() - 1] == ':') {
-                xml_each_node(node, [&content, &article_desc](auto next_node) {
-                  std::cout << "next node name: '" << next_node->name << "'\n";
-                  if (tdscript::xml_check_eq(next_node->name, "ul")) {
-                    content.append("\n").append(xml_get_content(next_node));
-                    article_desc = content;
-                    return true;
-                  }
-                  return false;
-                });
-                break;
-              }
             }
             if (!article_desc.empty()) {
-              break;
+              return 1;
             }
+            return 0;
+          });
+
+          if (!article_desc.empty()) {
+            article_desc = std::regex_replace(article_desc, std::regex(R"(\[[^]]*\])"), "");
+            std::cout << "'" << title << "': '" << article_desc << "'\n";
+
+            f(article_desc);
           }
-
-          article_desc = std::regex_replace(article_desc, std::regex(R"(\[\d+\])"), "");
-          trim(article_desc);
-          std::cout << "'" << title << "': '" << article_desc << "'\n";
-
-          f(article_desc);
 
           xmlFreeDoc(doc);
           xmlCleanupParser();

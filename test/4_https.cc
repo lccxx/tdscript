@@ -13,7 +13,7 @@ int main() {
 
   tdscript::stop = false;
   tdscript::data_ready = true;
-  auto client = tdscript::Client(1);
+  auto client = tdscript::Client(0);
 
   client.send_https_request("google.com", "/?1", [](const std::vector<std::string>& res) {
     if (res[1].find("/?1") != std::string::npos) {
@@ -53,11 +53,16 @@ int main() {
         assert(desc.size() > 19);
         tdscript::player_count[6] = 1;
 
-        client.wiki_get_content(lang, "bot", [](auto desc) {
+        client.wiki_get_content(lang, "bot", [&client, lang](auto desc) {
           assert(desc.size() > 19);
           tdscript::player_count[7] = 1;
 
-          tdscript::stop = true;
+          client.wiki_get_content(lang, "Preposition", [](auto desc) {
+            if (desc.find("Preposition") == std::string::npos) {
+              exit(5);
+            }
+            tdscript::stop = true;
+          });
         });
       });
     });
@@ -85,7 +90,7 @@ int main() {
   assert(tdscript::player_count[6] == 1);
   assert(tdscript::player_count[7] == 1);
 
-  if (tdscript::player_count[7] == 0) {
+  if (!tdscript::stop) {
     return 1;
   }
 }
