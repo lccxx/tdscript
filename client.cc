@@ -47,7 +47,7 @@ namespace tdscript {
 
   std::mt19937 rand_engine = std::mt19937((std::random_device())());
 
-  std::unordered_map<std::int64_t, std::uint8_t> last_start_at;
+  std::unordered_map<std::int64_t, std::uint64_t> last_start_at;
   std::unordered_map<std::int64_t, std::vector<std::string>> at_list;  // the '@' list
   std::unordered_map<std::int64_t, std::vector<std::int64_t>> player_ids;
   bool werewolf_bot_warning = false;
