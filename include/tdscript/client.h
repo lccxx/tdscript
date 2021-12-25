@@ -265,11 +265,7 @@ namespace tdscript {
             std::string class_name = xml_get_prop(node, "class");
             std::cout << "node name: '" << node->name << (class_name.empty() ? "" : "." + class_name) << "'\n";
             if (xml_check_eq(node->name, "div") && class_name == "redirectMsg") {
-              std::string redirect_title = data["parse"]["links"][0]["*"].GetString();
-              if (redirect_title == "Wikidata") {
-                redirect_title = data["parse"]["links"][1]["*"].GetString();
-              }
-              return wiki_get_content(lang, redirect_title, f);
+              return wiki_get_content(lang, xml_get_content(node), f);
             }
             if (xml_check_eq(node->name, "p")) {
               std::string content = xml_get_content(node);
