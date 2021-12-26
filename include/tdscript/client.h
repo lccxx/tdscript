@@ -423,7 +423,7 @@ namespace tdscript {
                   ss << "  " << (define_i + 1) << ". " << ds[d_key][define_i] << "\n";
                   std::string x_key = d_key + std::to_string(define_i);
                   for (const auto & example : xs[x_key]) {
-                    ss << "    <i>" << example << "</i>\n";
+                    ss << "    " << example << "\n";
                   }
                 }
               }
