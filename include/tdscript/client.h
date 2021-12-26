@@ -382,7 +382,7 @@ namespace tdscript {
                               }
                               define_found = true;
                               std::cout << "    '" << xml_get_content(ll_child) << "'\n";
-                              ds[define_key].back().append(xml_get_content(ll_child));
+                              ds[define_key].back().append(" ").append(xml_get_content(ll_child));
                             }
                             if (xml_check_eq(ll_child->name, "dl")) {
                               for (xmlNode* dl_child = ll_child->children; dl_child; dl_child = dl_child->next) {
