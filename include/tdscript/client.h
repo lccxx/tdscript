@@ -13,8 +13,7 @@
 
 #include "rapidjson/document.h"
 
-#include "libxml/HTMLparser.h"
-#include <libxml/tree.h>
+#include "libxml/parser.h"
 
 #include <stdexcept>
 #include <unordered_map>
@@ -91,7 +90,9 @@ namespace tdscript {
     std::stringstream ss; ss << xmlGetProp(node, (xmlChar*)name.c_str()); return ss.str();
   }
   inline std::string xml_get_content(const xmlNode *node) {
-    std::stringstream ss; ss << xmlNodeGetContent(node); return ss.str();
+    std::stringstream ss; ss << xmlNodeGetContent(node);
+    std::string content = ss.str(); trim(content);
+    return content;
   }
 
   // breadth-first search
@@ -307,33 +308,145 @@ namespace tdscript {
             fprintf(stderr, "Error: unable to parse string: \"%s\"\n", text.c_str());
             return;
           }
-
           xmlDocDump(stdout, doc);
-          std::string desc;
-          xmlNode *root = xmlDocGetRootElement(doc);
-          xml_each_next(root, [&desc](auto node) {
-            std::string node_id = xml_get_prop(node, "id");
-            std::cout << "node: '" << node->name << (node_id.empty() ? "" : "#" + node_id) << "'\n";
 
-            if (node_id == "English") {
-              std::vector<std::string> functions = {
-                  "Noun", "Verb", "Adjective", "Adverb", "Pronoun", "Preposition", "Conjunction", "Interjection",
-                  "Determiner"};
-              xml_each_next(node, [](auto i_node) {
-                std::string node_id = xml_get_prop(i_node, "id");
-                std::cout << "i_node: '" << i_node->name << (node_id.empty() ? "" : "#" + node_id) << "'\n";
-                return false;
-              });
-              return true;
+          const std::vector<std::string> FUNCTIONS =
+              { "Article", "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun",
+                "Preposition", "Conjunction", "Interjection", "Determiner" };
+
+          // languages -> etymologies -> functions -> defines -> examples
+          std::vector<std::string> ls;
+          std::unordered_map<std::string, std::vector<std::string>> es;
+          std::unordered_map<std::string, std::vector<std::tuple<std::string, std::string, std::string>>> fs;
+          std::unordered_map<std::string, std::vector<std::string>> ds;
+          std::unordered_map<std::string, std::vector<std::string>> xs;
+          xml_each_next(xmlDocGetRootElement(doc)->children, [FUNCTIONS,&ls,&es,&fs,&ds,&xs](auto node) {
+            if (xml_check_eq(node->name, "h2")) {
+              for (xmlNode* h2_child = node->children; h2_child; h2_child = h2_child->next) {
+                std::string language = xml_get_prop(h2_child, "id");
+                if (!language.empty()) {
+                  std::cout << "h2, language: '" << language << "'\n";
+                  ls.push_back(language);
+                  break;
+                }
+              }
             }
+            if (ls.empty()) { return 0; }
 
-            return false;
+            std::string language = ls.back();
+            if (xml_check_eq(node->name, "h3")) {
+              for (xmlNode* h3_child = node->children; h3_child; h3_child = h3_child->next) {
+                std::string etymology = xml_get_prop(h3_child, "id");
+                if (etymology.find("Etymology") != std::string::npos) {
+                  std::cout << "h3, etymology: '" << etymology << "'\n";
+                  es[language].push_back(etymology);
+                  break;
+                }
+              }
+            }
+            std::string etymology = es[language].empty()? "" : es[language].back();
+
+            if (xml_check_eq(node->name, "h4") || xml_check_eq(node->name, "h3")) {
+              for (xmlNode* h4_child = node->children; h4_child; h4_child = h4_child->next) {
+                std::string function = xml_get_prop(h4_child, "id");
+                function = std::regex_replace(function, std::regex("_\\d+"), "");
+                if (std::count(FUNCTIONS.begin(), FUNCTIONS.end(), function)) {
+                  std::cout << "h4, function: '" << function << "'\n";
+                  xml_each_next(node, [language, etymology, function, &fs](auto next) {
+                    if (xml_check_eq(next->name, "p")) {
+                      std::string lang;
+                      for (xmlNode* p_child = next->children; p_child; p_child = p_child->next) {
+                        if (xml_check_eq(p_child->name, "strong")) {
+                          lang = xml_get_prop(p_child, "lang");
+                          break;
+                        }
+                      }
+                      std::string word = xml_get_content(next);
+                      std::cout << "  " << function << ", " << word << ", " << lang << "\n";
+                      fs[language + etymology].push_back({ function, word, lang });
+                      return 1;
+                    }
+                    return 0;
+                  });
+                  xml_each_next(node, [language,etymology,function,&ds,&xs](auto next) {
+                    if (xml_check_eq(next->name, "ol")) {
+                      std::string define_key = std::string(language).append(etymology).append(function);
+                      for (xmlNode* ol_child = next->children; ol_child; ol_child = ol_child->next) {
+                        if (xml_check_eq(ol_child->name, "li")) {
+                          bool define_found = false;
+                          for (xmlNode* ll_child = ol_child->children; ll_child; ll_child = ll_child->next) {
+                            if (!define_found && (xml_check_eq(ll_child->name, "span") || xml_check_eq(ll_child->name, "a"))) {
+                              std::cout << "    '" << xml_get_content(ll_child) << "'\n";
+                              ds[define_key].push_back(xml_get_content(ll_child));
+                              define_found = true;
+                            }
+                            if (define_found && xml_check_eq(ll_child->name, "dl")) {
+                              for (xmlNode* dl_child = ll_child->children; dl_child; dl_child = dl_child->next) {
+                                if (xml_check_eq(dl_child->name, "dd")) {
+                                  std::cout << "      '" << xml_get_content(dl_child) << "'\n";
+                                  std::uint8_t define_i = ds[define_key].size() - 1;
+                                  xs[define_key + std::to_string(define_i)].push_back(xml_get_content(dl_child));
+                                }
+                              }
+                              break;
+                            }
+                          }
+                        }
+                      }
+                      return 1;
+                    }
+                    return 0;
+                  });
+                  break;
+                }
+              }
+            }
+            return 0;
           });
 
-          trim(desc);
-          std::cout << "'" << title << "': '" << desc << "'\n";
+          if (!ls.empty()) {
+            auto print_functions = [lang,f,&ds,&xs](
+                const std::string& language, const std::string& key,
+                const std::vector<std::tuple<std::string, std::string, std::string>>& functions) {
+              std::stringstream ss;
+              for (const auto& function : functions) {
+                if (!language.empty() && std::get<2>(function) != lang) {
+                  ss << language << '\n';
+                }
+                ss << std::get<0>(function) << "\n" << std::get<1>(function) << "\n";
+                std::string d_key = key + std::get<0>(function);
+                for (int define_i = 0; define_i < ds[d_key].size(); define_i++) {
+                  ss << "  " << (define_i + 1) << ". " << ds[d_key][define_i] << "\n";
+                  std::string x_key = d_key + std::to_string(define_i);
+                  for (const auto & example : xs[x_key]) {
+                    ss << "    " << example << "\n";
+                  }
+                }
+              }
+              f(ss.str());
+            };
 
-          f(desc);
+            bool lang_found = false;
+            for (const auto& fkv : fs) {
+              for (const auto& function : fkv.second) {
+                if (std::get<2>(function) == lang) {
+                  print_functions("", fkv.first, fs[fkv.first]);
+                  lang_found = true;
+                }
+              }
+            }
+            if (!lang_found) {
+              for (const auto &language : ls) {
+                for (const auto &etymology : es[language]) {
+                  std::string key = language + etymology;
+                  print_functions(language, key, fs[key]);
+                }
+                if (es[language].empty()) {
+                  print_functions(language, language, fs[language]);
+                }
+              }
+            }
+          }
 
           xmlFreeDoc(doc);
           xmlCleanupParser();

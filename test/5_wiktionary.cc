@@ -13,8 +13,15 @@ int main() {
   client.dict_get_random_title(lang, [&client, lang](auto title) {
     assert(!title.empty());
 
-    client.dict_get_content(lang, title, [](auto desc) {
+    std::cout << "random title: '" << title << "'\n";
 
+    client.dict_get_content(lang, title, [lang,&client](auto desc) {
+      std::cout << desc << '\n';
+
+      client.dict_get_content(lang, "the", [](auto desc) {
+        std::cout << desc << '\n';
+        tdscript::stop = true;
+      });
     });
   });
 
