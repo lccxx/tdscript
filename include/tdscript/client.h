@@ -375,12 +375,16 @@ namespace tdscript {
                         if (xml_check_eq(ol_child->name, "li")) {
                           bool define_found = false;
                           for (xmlNode* ll_child = ol_child->children; ll_child; ll_child = ll_child->next) {
-                            if (!define_found && (xml_check_eq(ll_child->name, "span") || xml_check_eq(ll_child->name, "a"))) {
-                              std::cout << "    '" << xml_get_content(ll_child) << "'\n";
-                              ds[define_key].push_back(xml_get_content(ll_child));
+                            if (xml_check_eq(ll_child->name, "text")
+                                    || xml_check_eq(ll_child->name, "span") || xml_check_eq(ll_child->name, "a")) {
+                              if (!define_found) {
+                                ds[define_key].push_back("");
+                              }
                               define_found = true;
+                              std::cout << "    '" << xml_get_content(ll_child) << "'\n";
+                              ds[define_key].back().append(xml_get_content(ll_child));
                             }
-                            if (define_found && xml_check_eq(ll_child->name, "dl")) {
+                            if (xml_check_eq(ll_child->name, "dl")) {
                               for (xmlNode* dl_child = ll_child->children; dl_child; dl_child = dl_child->next) {
                                 if (xml_check_eq(dl_child->name, "dd")) {
                                   std::cout << "      '" << xml_get_content(dl_child) << "'\n";
@@ -419,7 +423,7 @@ namespace tdscript {
                   ss << "  " << (define_i + 1) << ". " << ds[d_key][define_i] << "\n";
                   std::string x_key = d_key + std::to_string(define_i);
                   for (const auto & example : xs[x_key]) {
-                    ss << "    " << example << "\n";
+                    ss << "    <i>" << example << "</i>\n";
                   }
                 }
               }

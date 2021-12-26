@@ -18,9 +18,14 @@ int main() {
     client.dict_get_content(lang, title, [lang,&client](auto desc) {
       std::cout << desc << '\n';
 
-      client.dict_get_content(lang, "the", [](auto desc) {
+      client.dict_get_content(lang, "the", [lang,&client](auto desc) {
         std::cout << desc << '\n';
-        tdscript::stop = true;
+
+        client.dict_get_content(lang, "franchise", [](auto desc) {
+          std::cout << desc << '\n';
+
+          tdscript::stop = true;
+        });
       });
     });
   });
