@@ -528,9 +528,9 @@ namespace tdscript {
       });
     }
 
-    inline void process_wiki(std::int64_t chat_id, const std::string &text) {
-      std::regex lang_regex("^\\/(.{0,2})wiki");
-      std::regex title_regex("wiki(.*)$");
+    inline void process_wiki(std::int64_t chat_id, const std::string &text, std::string kw, std::string domain) {
+      std::regex lang_regex("^\\/(.{0,2})" + kw);
+      std::regex title_regex(kw + "(.*)$");
       std::smatch lang_match;
       std::smatch title_match;
       std::string lang;
@@ -545,7 +545,7 @@ namespace tdscript {
       if (lang.empty()) {
         lang = "en";
       }
-      std::string host = lang + ".wikipedia.org";
+      std::string host = lang + "." + domain + ".org";
       if (title.empty()) {
         wiki_get_random_title(lang, [this, chat_id, lang](auto title) {
           process_wiki(chat_id, lang, title);
@@ -553,6 +553,14 @@ namespace tdscript {
       } else {
         process_wiki(chat_id, lang, title);
       }
+    }
+
+    inline void process_dict(std::int64_t chat_id, const std::string &text) {
+      process_wiki(chat_id, text, "dict", "wiktionary");
+    }
+
+    inline void process_wiki(std::int64_t chat_id, const std::string &text) {
+      process_wiki(chat_id, text, "wiki", "wikipedia");
     }
 
     inline void process_wiki(std::int64_t chat_id, const std::string &lang, const std::string &title) {

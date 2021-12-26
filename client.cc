@@ -245,6 +245,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
   }
 
   process_wiki(chat_id, text);
+  process_dict(chat_id, text);
 
   if (text == EXTEND_TEXT) {
     pending_extend_messages[chat_id].push_back(msg_id);
