@@ -376,13 +376,19 @@ namespace tdscript {
                           bool define_found = false;
                           for (xmlNode* ll_child = ol_child->children; ll_child; ll_child = ll_child->next) {
                             if (xml_check_eq(ll_child->name, "text")
-                                    || xml_check_eq(ll_child->name, "span") || xml_check_eq(ll_child->name, "a")) {
+                                    || xml_check_eq(ll_child->name, "span")
+                                    || xml_check_eq(ll_child->name, "a")) {
                               if (!define_found) {
                                 ds[define_key].push_back("");
                               }
                               define_found = true;
-                              std::cout << "    '" << xml_get_content(ll_child) << "'\n";
-                              ds[define_key].back().append(" ").append(xml_get_content(ll_child));
+                              std::string define = xml_get_content(ll_child);
+                              std::cout << "    '" << define << "'\n";
+                              if (ds[define_key].back()[ds[define_key].back().length() - 1] == '(' || define[0] == ')') {
+                                ds[define_key].back().append(define);
+                              } else {
+                                ds[define_key].back().append(" ").append(define);
+                              }
                             }
                             if (xml_check_eq(ll_child->name, "dl")) {
                               for (xmlNode* dl_child = ll_child->children; dl_child; dl_child = dl_child->next) {
