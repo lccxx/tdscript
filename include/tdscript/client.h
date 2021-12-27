@@ -81,6 +81,14 @@ namespace tdscript {
     if (!arr.empty()) { f((std::uniform_int_distribution<int>(0, arr.size() - 1))(rand_engine)); }
   }
 
+  inline int ustring_count(const std::string& text, std::size_t offset1, std::size_t offset2) {
+    int len = 0;
+    for (std::size_t i = offset1; i < offset2; i++) {
+      len += (text[i] & 0xc0) != 0x80;
+    }
+    return len;
+  }
+
   inline void ltrim(std::string &s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
       return !std::isspace(ch);
@@ -217,17 +225,17 @@ namespace tdscript {
       message_content->text_ = td::td_api::make_object<td::td_api::formattedText>();
       if (!no_html) {
         std::vector<td::td_api::object_ptr<td::td_api::textEntity>> entities;
-        std::size_t offset1, offset2;
+        std::size_t offset1 = 0, offset2 = 0;
         do {
-          offset1 = text.find("<i>");
+          offset1 = text.find("<i>", offset2);
           if (offset1 == std::string::npos) { break; }
           text.erase(offset1, 3);
           auto entity = td::td_api::make_object<td::td_api::textEntity>();
-          entity->offset_ = (int)offset1;
-          offset2 = text.find("</i>");
+          entity->offset_ = ustring_count(text, 0, offset1);
+          offset2 = text.find("</i>", offset1);
           if (offset2 == std::string::npos) { break; }
           text.erase(offset2, 4);
-          entity->length_ = (int)(offset2 - offset1 - 1);
+          entity->length_ = ustring_count(text, offset1, offset2);
           entity->type_ = td::td_api::make_object<td::td_api::textEntityTypeItalic>();
           entities.push_back(std::move(entity));
         } while (true);
