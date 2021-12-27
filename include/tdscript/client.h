@@ -465,7 +465,8 @@ namespace tdscript {
                               define_found = true;
                               std::string define = xml_get_content(ll_child);
                               std::cout << "    '" << define << "'" << std::endl;
-                              if (ds[define_key].back()[ds[define_key].back().length() - 1] == '('
+                              if (ds[define_key].back().empty()
+                                  || ds[define_key].back()[ds[define_key].back().length() - 1] == '('
                                   || define[0] == ')' || define[0] == ',' || define[0] == '.' || define[0] == ';') {
                                 ds[define_key].back().append(define);
                               } else {

@@ -15,23 +15,23 @@ int main() {
 
     std::cout << "random title: '" << title << "'\n";
 
-    client.dict_get_content(lang, title, [lang,&client](auto desc) {
+    client.dict_get_content(lang, title, [lang](auto desc) {
       std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
-
-      client.dict_get_content(lang, "the", [lang,&client](auto desc) {
-        std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
-
-        client.dict_get_content(lang, "franchise", [lang,&client](auto desc) {
-          std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
-
-          client.dict_get_content(lang, "raffle", [](auto desc) {
-            std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
-
-            tdscript::stop = true;
-          });
-        });
-      });
     });
+  });
+
+  client.dict_get_content(lang, "the", [lang](auto desc) {
+    std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
+  });
+
+  client.dict_get_content(lang, "franchise", [lang](auto desc) {
+    std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
+  });
+
+  client.dict_get_content(lang, "raffle", [](auto desc) {
+    std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
+
+    tdscript::stop = true;
   });
 
   for (int i = 0; i < 999 && !tdscript::stop; i++) {
