@@ -515,6 +515,9 @@ namespace tdscript {
                 const std::vector<std::tuple<std::string, std::string, std::string>>& functions) {
               std::stringstream ss;
               for (const auto& function : functions) {
+                if (ss.rdbuf()->in_avail() != 0) {
+                  ss << '\n';
+                }
                 if (!language.empty() && std::get<2>(function) != lang) {
                   if (lang_found) {
                     continue;
@@ -531,7 +534,7 @@ namespace tdscript {
                   }
                 }
               }
-              if (!ss.str().empty()) {
+              if (ss.rdbuf()->in_avail() != 0) {
                 f(ss.str());
               }
             };
