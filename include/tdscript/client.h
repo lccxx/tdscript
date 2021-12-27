@@ -217,18 +217,17 @@ namespace tdscript {
       message_content->text_ = td::td_api::make_object<td::td_api::formattedText>();
       if (!no_html) {
         std::vector<td::td_api::object_ptr<td::td_api::textEntity>> entities;
-        std::size_t offset1;
-        std::size_t offset2 = 0;
+        std::size_t offset1, offset2;
         do {
-          offset1 = text.find("<i>", offset2);
+          offset1 = text.find("<i>");
           if (offset1 == std::string::npos) { break; }
           text.erase(offset1, 3);
           auto entity = td::td_api::make_object<td::td_api::textEntity>();
           entity->offset_ = (int)offset1;
-          offset2 = text.find("</i>", offset1);
+          offset2 = text.find("</i>");
           if (offset2 == std::string::npos) { break; }
           text.erase(offset2, 4);
-          entity->length_ = (int)(offset2 - offset1);
+          entity->length_ = (int)(offset2 - offset1 - 1);
           entity->type_ = td::td_api::make_object<td::td_api::textEntityTypeItalic>();
           entities.push_back(std::move(entity));
         } while (true);
