@@ -162,7 +162,7 @@ void tdscript::Client::process_tasks(std::time_t time) {
 void tdscript::Client::process_response(td::ClientManager::Response response) {
   if (!response.object) { return; }
   auto update = std::move(response.object);
-  std::cout << "receive " << response.request_id << ": " << td::td_api::to_string(update) << '\n';
+  std::cout << "receive " << response.request_id << ": " << td::td_api::to_string(update) << std::endl;
 
   if (response.request_id != 0) {
     if (query_callbacks.count(response.request_id) > 0) {
@@ -238,7 +238,7 @@ void tdscript::Client::process_message(td::td_api::object_ptr<td::td_api::messag
 }
 
 void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text, const std::string& link) {
-  std::cout << "msg(" << msg_id << "): " << user_id << " -> " << chat_id << ", " << text << "\n\n";
+  std::cout << "msg(" << msg_id << "): " << user_id << " -> " << chat_id << ", " << text << "\n" << std::endl;
 
   if (user_id == USER_ID_WEREWOLF || user_id == 0) {
     process_werewolf(chat_id, msg_id, user_id, text, link);
@@ -256,7 +256,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
     for (const auto& at : at_list[chat_id]) { send_text(chat_id, at); }
     select_one_randomly(STICKS_STARTING, [this, chat_id](std::size_t i) {
       while (true) {
-        std::cout << "selected stick, number: " << i << '\n';
+        std::cout << "selected stick, number: " << i << std::endl;
         std::int64_t from_chat_id = STICKS_STARTING[i][0];
         std::int64_t from_msg_id = STICKS_STARTING[i][1];
         if (STICKS_STARTING[i].size() > 2) {
