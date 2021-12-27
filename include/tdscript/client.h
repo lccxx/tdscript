@@ -25,6 +25,7 @@
 #include <sstream>
 #include <regex>
 #include <queue>
+#include <utility>
 
 #include <arpa/inet.h>
 
@@ -205,6 +206,39 @@ namespace tdscript {
       std::getline(std::cin, password);
       send_request(td::td_api::make_object<td::td_api::checkAuthenticationPassword>(password));
     }
+    inline void send_html(std::int64_t chat_id, std::int64_t reply_id, std::string text, bool no_link_preview, bool no_html) {
+      auto send_message = td::td_api::make_object<td::td_api::sendMessage>();
+      send_message->chat_id_ = chat_id;
+      send_message->reply_to_message_id_ = reply_id;
+      auto message_content = td::td_api::make_object<td::td_api::inputMessageText>();
+      message_content->text_ = td::td_api::make_object<td::td_api::formattedText>();
+      if (!no_html) {
+        std::vector<td::td_api::object_ptr<td::td_api::textEntity>> entities;
+        std::size_t offset1;
+        std::size_t offset2 = 0;
+        do {
+          offset1 = text.find("<i>", offset2);
+          if (offset1 == std::string::npos) { break; }
+          text.erase(offset1, 3);
+          auto entity = td::td_api::make_object<td::td_api::textEntity>();
+          entity->offset_ = (int)offset1;
+          offset2 = text.find("</i>", offset1);
+          if (offset2 == std::string::npos) { break; }
+          text.erase(offset2, 4);
+          entity->length_ = (int)(offset2 - offset1);
+          entity->type_ = td::td_api::make_object<td::td_api::textEntityTypeItalic>();
+          entities.push_back(entity);
+        } while (true);
+        message_content->text_->entities_ = entities;
+      }
+      message_content->text_->text_ = std::move(text);
+      message_content->disable_web_page_preview_ = no_link_preview;
+      send_message->input_message_content_ = std::move(message_content);
+      send_request(std::move(send_message));
+    }
+    inline void send_html(std::int64_t chat_id, std::string text) {
+      send_html(chat_id, 0, std::move(text), true, false);
+    }
     inline void send_text(std::int64_t chat_id, std::string text) {
       send_text(chat_id, 0, std::move(text), false);
     }
@@ -212,15 +246,7 @@ namespace tdscript {
       send_text(chat_id, 0, std::move(text), no_link_preview);
     }
     inline void send_text(std::int64_t chat_id, std::int64_t reply_id, std::string text, bool no_link_preview) {
-      auto send_message = td::td_api::make_object<td::td_api::sendMessage>();
-      send_message->chat_id_ = chat_id;
-      send_message->reply_to_message_id_ = reply_id;
-      auto message_content = td::td_api::make_object<td::td_api::inputMessageText>();
-      message_content->text_ = td::td_api::make_object<td::td_api::formattedText>();
-      message_content->text_->text_ = std::move(text);
-      message_content->disable_web_page_preview_ = no_link_preview;
-      send_message->input_message_content_ = std::move(message_content);
-      send_request(std::move(send_message));
+      send_html(chat_id, reply_id, std::move(text), no_link_preview, true);
     }
     inline void send_reply(std::int64_t chat_id, std::int64_t reply_id, std::string text) {
       send_text(chat_id, reply_id, std::move(text), false);
@@ -531,7 +557,7 @@ namespace tdscript {
                   ss << (define_i + 1) << ". " << ds[d_key][define_i] << "\n";
                   std::string x_key = d_key + std::to_string(define_i);
                   for (const auto & example : xs[x_key]) {
-                    ss << "  eg: " << example << "\n";
+                    ss << "  <i>" << example << "</i>\n";
                   }
                 }
               }
@@ -608,7 +634,7 @@ namespace tdscript {
     }
 
     inline void process_dict(std::int64_t chat_id, const std::string &lang, const std::string &title) {
-      dict_get_content(lang, title, [this, chat_id](auto desc) { send_text(chat_id, desc, true); });
+      dict_get_content(lang, title, [this, chat_id](auto desc) { send_html(chat_id, desc); });
     }
   };  // class Client
 }  // namespace tdscript
