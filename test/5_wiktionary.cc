@@ -10,6 +10,16 @@ int main() {
   auto client = tdscript::Client(0);
 
   std::string lang = "en";
+
+  std::int8_t callback_count = 0;
+  client.dict_get_content(lang, "raffle", [&](auto desc) {
+    std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
+
+    if (++callback_count > 1) {
+      tdscript::stop = true;
+    }
+  });
+
   client.dict_get_random_title(lang, [&client, lang](auto title) {
     assert(!title.empty());
 
@@ -28,14 +38,10 @@ int main() {
     std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
   });
 
-  client.dict_get_content(lang, "raffle", [](auto desc) {
-    std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
-
-    tdscript::stop = true;
-  });
-
   for (int i = 0; i < 999 && !tdscript::stop; i++) {
     client.dns_client.receive(tdscript::SOCKET_TIME_OUT_MS);
+
+    client.process_tasks(std::time(nullptr));
   }
 
   if (!tdscript::stop) {

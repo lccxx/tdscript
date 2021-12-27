@@ -45,6 +45,9 @@ namespace tdscript {
 
   extern std::mt19937 rand_engine;
 
+  extern std::time_t last_task_at;
+  extern std::unordered_map<std::time_t, std::vector<std::function<void()>>> task_queue;
+
   const double RECEIVE_TIMEOUT_S = 0.01;
   const double AUTHORIZE_TIMEOUT_S = 30;
   const int SOCKET_TIME_OUT_MS = 10;
@@ -537,7 +540,11 @@ namespace tdscript {
               }
             }
 
-            auto print_functions = [lang,lang_found,f,&ds,&xs](
+            auto print_functions = [](
+                const std::string& lang, bool lang_found,
+                const std::unordered_map<std::string, std::vector<std::string>>& ds,
+                const std::unordered_map<std::string, std::vector<std::string>>& xs,
+                const std::function<void(std::string)>& f,
                 const std::string& language, const std::string& key,
                 const std::vector<std::tuple<std::string, std::string, std::string>>& functions) {
               std::stringstream ss;
@@ -553,11 +560,15 @@ namespace tdscript {
                 }
                 ss << std::get<0>(function) << ", " << std::get<1>(function) << "\n";
                 std::string d_key = key + std::get<0>(function);
-                for (int define_i = 0; define_i < ds[d_key].size(); define_i++) {
-                  ss << (define_i + 1) << ". " << ds[d_key][define_i] << "\n";
-                  std::string x_key = d_key + std::to_string(define_i);
-                  for (const auto & example : xs[x_key]) {
-                    ss << "  <i>" << example << "</i>\n";
+                if (ds.count(d_key) > 0) {
+                  for (int define_i = 0; define_i < ds.at(d_key).size(); define_i++) {
+                    ss << (define_i + 1) << ". " << ds.at(d_key)[define_i] << "\n";
+                    std::string x_key = d_key + std::to_string(define_i);
+                    if (xs.count(x_key) > 0) {
+                      for (const auto &example : xs.at(x_key)) {
+                        ss << "  <i>" << example << "</i>\n";
+                      }
+                    }
                   }
                 }
               }
@@ -568,12 +579,20 @@ namespace tdscript {
 
             for (const auto &language : ls) {
               if (!es[language].empty()) {
-                for (const auto &etymology : es[language]) {
-                  std::string key = language + etymology;
-                  print_functions(language, key, fs[key]);
+                for (int etymology_i = 0; etymology_i < es[language].size(); etymology_i++) {
+                  std::string key = language + es[language][etymology_i];
+                  auto functions = fs[key];
+                  if (etymology_i > 0) {
+                    task_queue[std::time(nullptr)
+                        + etymology_i].push_back([lang,lang_found,ds,xs,f,print_functions,language,key,functions]() {
+                      print_functions(lang, lang_found, ds, xs, f, language, key, functions);
+                    });
+                  } else {
+                    print_functions(lang, lang_found, ds, xs, f, language, key, functions);
+                  }
                 }
               } else {
-                print_functions(language, language, fs[language]);
+                print_functions(lang, lang_found, ds, xs, f, language, language, fs[language]);
               }
             }
           }
