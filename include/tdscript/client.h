@@ -227,9 +227,9 @@ namespace tdscript {
           text.erase(offset2, 4);
           entity->length_ = (int)(offset2 - offset1);
           entity->type_ = td::td_api::make_object<td::td_api::textEntityTypeItalic>();
-          entities.push_back(entity);
+          entities.push_back(std::move(entity));
         } while (true);
-        message_content->text_->entities_ = entities;
+        message_content->text_->entities_ = std::move(entities);
       }
       message_content->text_->text_ = std::move(text);
       message_content->disable_web_page_preview_ = no_link_preview;
