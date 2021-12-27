@@ -551,7 +551,7 @@ namespace tdscript {
                   }
                   ss << language << '\n';
                 }
-                ss << std::get<0>(function) << "\n" << std::get<1>(function) << "\n";
+                ss << std::get<0>(function) << ", " << std::get<1>(function) << "\n";
                 std::string d_key = key + std::get<0>(function);
                 for (int define_i = 0; define_i < ds[d_key].size(); define_i++) {
                   ss << (define_i + 1) << ". " << ds[d_key][define_i] << "\n";
