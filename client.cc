@@ -87,8 +87,8 @@ void tdscript::Client::send_join(std::int64_t chat_id, std::int64_t bot_id, cons
   send_message->parameter_ = param;
   send_request(std::move(send_message));
 
-  // add to the task queue, resend after 5 seconds, limit 9(default)
-  task_queue[std::time(nullptr) + 5].push_back([this, chat_id, bot_id, link, limit]() {
+  // add to the task queue, resend after 9 seconds, limit 9(default)
+  task_queue[std::time(nullptr) + 9].push_back([this, chat_id, bot_id, link, limit]() {
     send_join(chat_id, bot_id, link, limit - 1);
   });
 }
