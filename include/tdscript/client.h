@@ -468,7 +468,7 @@ namespace tdscript {
                 }
               }
             }
-            std::size_t etymology_i = es[language].size() - 1;
+            std::size_t etymology_i = es[language].empty() ? 0 : es[language].size() - 1;
 
             if (xml_check_eq(node->name, "h4") || xml_check_eq(node->name, "h3")) {
               for (xmlNode* h4_child = node->children; h4_child; h4_child = h4_child->next) {
@@ -613,7 +613,7 @@ namespace tdscript {
                   }
                 }
               } else {
-                std::string key = language + "-1";
+                std::string key = language + "0";
                 auto functions = fs[key];
                 print_functions(lang, lang_found, ds, xs, f, language, "", key, functions);
               }
