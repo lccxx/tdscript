@@ -548,14 +548,17 @@ namespace tdscript {
                 const std::function<void(std::string)>& f,
                 const std::string& language, const std::string& etymology, const std::string& key,
                 const std::vector<std::tuple<std::string, std::string, std::string>>& functions) {
+              if (functions.empty()) {
+                return;
+              }
               std::stringstream ss;
-              if (!language.empty() && !functions.empty() && std::get<2>(functions[0]) != lang) {
+              if (!language.empty() && std::get<2>(functions[0]) != lang) {
                 if (lang_found) {
                   return;
                 }
                 ss << language << '\n';
               }
-              if (!etymology.empty()) {
+              if (!etymology.empty() && etymology != std::get<1>(functions[0])) {
                 ss << etymology << '\n';
               }
               for (const auto& function : functions) {
