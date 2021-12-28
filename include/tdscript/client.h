@@ -225,7 +225,7 @@ namespace tdscript {
       message_content->text_ = td::td_api::make_object<td::td_api::formattedText>();
       if (!no_html) {
         std::vector<td::td_api::object_ptr<td::td_api::textEntity>> entities;
-        std::size_t offset1 = 0, offset2 = 0;
+        std::size_t offset1, offset2 = 0;
         do {
           offset1 = text.find("<i>", offset2);
           if (offset1 == std::string::npos) { break; }
@@ -455,13 +455,20 @@ namespace tdscript {
               for (xmlNode* h3_child = node->children; h3_child; h3_child = h3_child->next) {
                 std::string etymology = xml_get_prop(h3_child, "id");
                 if (etymology.find("Etymology") != std::string::npos) {
-                  std::cout << "h3, etymology: '" << etymology << "'" << std::endl;
-                  es[language].push_back(etymology);
+                  xml_each_next(node, [language, &es](auto next) {
+                    if (xml_check_eq(next->name, "p")) {
+                      std::string etymology = xml_get_content(next);
+                      std::cout << "h3, etymology: '" << etymology << "'" << std::endl;
+                      es[language].push_back(etymology);
+                      return 1;
+                    }
+                    return 0;
+                  });
                   break;
                 }
               }
             }
-            std::string etymology = es[language].empty()? "" : es[language].back();
+            std::size_t etymology_i = es[language].size() - 1;
 
             if (xml_check_eq(node->name, "h4") || xml_check_eq(node->name, "h3")) {
               for (xmlNode* h4_child = node->children; h4_child; h4_child = h4_child->next) {
@@ -469,7 +476,7 @@ namespace tdscript {
                 function = std::regex_replace(function, std::regex("_\\d+"), "");
                 if (std::count(FUNCTIONS.begin(), FUNCTIONS.end(), function)) {
                   std::cout << "h4, function: '" << function << "'" << std::endl;
-                  xml_each_next(node, [language, etymology, function, &fs](auto next) {
+                  xml_each_next(node, [language, etymology_i, function, &fs](auto next) {
                     if (xml_check_eq(next->name, "p")) {
                       std::string lang;
                       for (xmlNode* p_child = next->children; p_child; p_child = p_child->next) {
@@ -480,14 +487,14 @@ namespace tdscript {
                       }
                       std::string word = xml_get_content(next);
                       std::cout << "  " << function << ", " << word << ", " << lang << std::endl;
-                      fs[language + etymology].push_back({ function, word, lang });
+                      fs[language + std::to_string(etymology_i)].push_back({ function, word, lang });
                       return 1;
                     }
                     return 0;
                   });
-                  xml_each_next(node, [language,etymology,function,&ds,&xs](auto next) {
+                  xml_each_next(node, [language,etymology_i,function,&ds,&xs](auto next) {
                     if (xml_check_eq(next->name, "ol")) {
-                      std::string define_key = std::string(language).append(etymology).append(function);
+                      std::string define_key = std::string(language).append(std::to_string(etymology_i)).append(function);
                       for (xmlNode* ol_child = next->children; ol_child; ol_child = ol_child->next) {
                         if (xml_check_eq(ol_child->name, "li")) {
                           bool define_found = false;
@@ -534,36 +541,26 @@ namespace tdscript {
           });
 
           if (!ls.empty()) {
-            bool lang_found = false;
-            for (const auto& fkv : fs) {
-              for (const auto& function : fkv.second) {
-                if (std::get<2>(function) == lang) {
-                  lang_found = true;
-                  break;
-                }
-              }
-              if (lang_found) {
-                break;
-              }
-            }
-
             auto print_functions = [](
                 const std::string& lang, bool lang_found,
                 const std::unordered_map<std::string, std::vector<std::string>>& ds,
                 const std::unordered_map<std::string, std::vector<std::string>>& xs,
                 const std::function<void(std::string)>& f,
-                const std::string& language, const std::string& key,
+                const std::string& language, const std::string& etymology, const std::string& key,
                 const std::vector<std::tuple<std::string, std::string, std::string>>& functions) {
               std::stringstream ss;
+              if (!language.empty() && !functions.empty() && std::get<2>(functions[0]) != lang) {
+                if (lang_found) {
+                  return;
+                }
+                ss << language << '\n';
+              }
+              if (!etymology.empty()) {
+                ss << etymology << '\n';
+              }
               for (const auto& function : functions) {
                 if (ss.rdbuf()->in_avail() != 0) {
                   ss << '\n';
-                }
-                if (!language.empty() && std::get<2>(function) != lang) {
-                  if (lang_found) {
-                    continue;
-                  }
-                  ss << language << '\n';
                 }
                 ss << std::get<0>(function) << ", " << std::get<1>(function) << "\n";
                 std::string d_key = key + std::get<0>(function);
@@ -584,22 +581,38 @@ namespace tdscript {
               }
             };
 
+            bool lang_found = false;
+            for (const auto& fkv : fs) {
+              for (const auto& function : fkv.second) {
+                if (std::get<2>(function) == lang) {
+                  lang_found = true;
+                  break;
+                }
+              }
+              if (lang_found) {
+                break;
+              }
+            }
+
             for (const auto &language : ls) {
               if (!es[language].empty()) {
                 for (int etymology_i = 0; etymology_i < es[language].size(); etymology_i++) {
-                  std::string key = language + es[language][etymology_i];
+                  std::string etymology = es[language][etymology_i];
+                  std::string key = language + std::to_string(etymology_i);
                   auto functions = fs[key];
                   if (etymology_i > 0) {
                     task_queue[std::time(nullptr)
-                        + etymology_i].push_back([lang,lang_found,ds,xs,f,print_functions,language,key,functions]() {
-                      print_functions(lang, lang_found, ds, xs, f, language, key, functions);
+                        + etymology_i].push_back([lang,lang_found,ds,xs,f,print_functions,language,etymology,key,functions]() {
+                      print_functions(lang, lang_found, ds, xs, f, language, etymology, key, functions);
                     });
                   } else {
-                    print_functions(lang, lang_found, ds, xs, f, language, key, functions);
+                    print_functions(lang, lang_found, ds, xs, f, language, etymology, key, functions);
                   }
                 }
               } else {
-                print_functions(lang, lang_found, ds, xs, f, language, language, fs[language]);
+                std::string key = language + "-1";
+                auto functions = fs[key];
+                print_functions(lang, lang_found, ds, xs, f, language, "", key, functions);
               }
             }
           }
