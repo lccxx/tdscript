@@ -486,6 +486,10 @@ namespace tdscript {
                           std::string duration = xml_get_prop(child, "data-durationhint");
                           for (xmlNode* audio_child = child->children; audio_child; audio_child = audio_child->next) {
                             if (xml_check_eq(audio_child->name, "source")) {
+                              std::string type = xml_get_prop(audio_child, "type");
+                              if (type != "audio/mpeg") {
+                                continue;
+                              }
                               std::string src = xml_get_prop(audio_child, "src");
                               std::cout << duration << ", " << src << std::endl;
                               ps[language].push_back({ duration, src });
