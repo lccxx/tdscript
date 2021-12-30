@@ -27,6 +27,7 @@
 #include <regex>
 #include <queue>
 #include <utility>
+#include <fstream>
 
 #include <arpa/inet.h>
 
@@ -259,12 +260,14 @@ namespace tdscript {
     inline void send_text(std::int64_t chat_id, std::int64_t reply_id, std::string text, bool no_link_preview) {
       send_html(chat_id, reply_id, std::move(text), no_link_preview, true);
     }
-    inline void send_voice(std::int64_t chat_id, int duration, std::string waveform) {
+    inline void send_voice(std::int64_t chat_id, int duration, std::string filename) {
       auto send_message = td::td_api::make_object<td::td_api::sendMessage>();
       send_message->chat_id_ = chat_id;
       auto message_content = td::td_api::make_object<td::td_api::inputMessageVoiceNote>();
       message_content->duration_ = duration;
-      message_content->waveform_ = std::move(waveform);
+      auto file_local = td::td_api::make_object<td::td_api::inputFileLocal>();
+      file_local->path_ = std::move(filename);
+      message_content->voice_note_ = std::move(file_local);
       send_message->input_message_content_ = std::move(message_content);
       send_request(std::move(send_message));
     }
@@ -763,8 +766,14 @@ namespace tdscript {
           std::string type(desc[0].begin(), desc[0].end());
           if (type == "Pronunciation") {
             int duration = std::ceil(std::stof(std::string(desc[1].begin(), desc[1].end())));
-            std::string wave(desc[2].begin(), desc[2].end());
-            send_voice(chat_id, duration, wave);
+            std::string data(desc[2].begin(), desc[2].end());
+            std::string filename = "/tmp/" + type + std::to_string(chat_id) + std::to_string(std::time(nullptr));
+            filename += std::to_string(std::uniform_int_distribution<int>(0, 99999999))(rand_engine));
+            std::ofstream ofs;
+            ofs.open(filename, std::ofstream::out | std::ofstream::binary);
+            ofs << data;
+            ofs.close();
+            send_voice(chat_id, duration, filename);
           }
         }
       });
