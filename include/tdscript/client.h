@@ -479,7 +479,7 @@ namespace tdscript {
                 if (node_id == "Pronunciation") {
                   xml_each_next(node, [language, &ps](auto next) {
                     if (xml_check_eq(next->name, "ul")) {
-                      xml_each_child(next->children, [language, &ps](auto child) {
+                      xml_each_child(next, [language, &ps](auto child) {
                         if (xml_check_eq(child->name, "audio")) {
                           std::string duration = xml_get_prop(child, "data-durationhint");
                           for (xmlNode* audio_child = child->children; audio_child; audio_child = audio_child->next) {
