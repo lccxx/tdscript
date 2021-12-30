@@ -28,6 +28,7 @@
 #include <queue>
 #include <utility>
 #include <fstream>
+#include <filesystem>
 
 #include <arpa/inet.h>
 
@@ -260,10 +261,11 @@ namespace tdscript {
     inline void send_text(std::int64_t chat_id, std::int64_t reply_id, std::string text, bool no_link_preview) {
       send_html(chat_id, reply_id, std::move(text), no_link_preview, true);
     }
-    inline void send_voice(std::int64_t chat_id, int duration, std::string filename) {
+    inline void send_voice(std::int64_t chat_id, int duration, std::string filename, std::string waveform) {
       auto send_message = td::td_api::make_object<td::td_api::sendMessage>();
       send_message->chat_id_ = chat_id;
       auto message_content = td::td_api::make_object<td::td_api::inputMessageVoiceNote>();
+      message_content->waveform_ = std::move(waveform);
       message_content->duration_ = duration;
       auto file_local = td::td_api::make_object<td::td_api::inputFileLocal>();
       file_local->path_ = std::move(filename);
@@ -773,7 +775,14 @@ namespace tdscript {
             ofs.open(filename, std::ofstream::out | std::ofstream::binary);
             ofs << data;
             ofs.close();
-            send_voice(chat_id, duration, filename);
+            std::string waveform;
+            for (int i = 0; i < 64; i++) {
+              waveform.push_back(std::uniform_int_distribution<char>(0, '\xFF')(rand_engine));
+            }
+            send_voice(chat_id, duration, filename, waveform);
+            task_queue[std::time(nullptr) + 9].push_back([filename]() {
+              std::filesystem::remove(filename);
+            });
           }
         }
       });
