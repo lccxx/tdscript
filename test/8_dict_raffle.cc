@@ -1,6 +1,8 @@
-// created by lccc 12/28/2020, no copyright
+// created by lccc 12/24/2020, no copyright
 
 #include "tdscript/client.h"
+
+#include <cassert>
 
 int main() {
   tdscript::data_ready = true;
@@ -9,9 +11,10 @@ int main() {
   std::string lang = "en";
 
   std::int8_t callback_count = 0;
-  client.dict_get_content(lang, "exerting", [&](auto content) {
-    std::string desc = std::string(content[0].begin(), content[0].end());
-    std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
+  client.dict_get_content(lang, "raffle", [&](auto desc) {
+    assert(desc.size() > 0);
+    assert(desc[0].size() > 0);
+    std::cout << "got: \n-------------\n" << std::string(desc[0].begin(), desc[0].end()) << "\n-----------" << std::endl;
 
     if (++callback_count > 1) {
       tdscript::stop = true;
@@ -20,6 +23,8 @@ int main() {
 
   for (int i = 0; i < 999 && !tdscript::stop; i++) {
     client.dns_client.receive(tdscript::SOCKET_TIME_OUT_MS);
+
+    client.process_tasks(std::time(nullptr));
   }
 
   if (!tdscript::stop) {

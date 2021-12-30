@@ -58,8 +58,8 @@ namespace tdscript {
 
 void tdscript::Client::send_start(std::int64_t chat_id) {
   if (werewolf_bot_warning) { return; }
-  if (need_extend.at(chat_id)) { return; }
-  if (started.at(chat_id)) { return; }
+  if (need_extend.count(chat_id) > 0 && need_extend.at(chat_id)) { return; }
+  if (started.count(chat_id) > 0 && started.at(chat_id)) { return; }
   if (last_done_at.count(chat_id) > 0 && std::time(nullptr) - last_done_at.at(chat_id) < 99) { return; }
   if (last_start_at.count(chat_id) > 0 && std::time(nullptr) - last_start_at.at(chat_id) < 9) { return; }
   last_start_at[chat_id] = std::time(nullptr);
@@ -69,8 +69,8 @@ void tdscript::Client::send_start(std::int64_t chat_id) {
 
 void tdscript::Client::send_join(std::int64_t chat_id, std::int64_t bot_id, const std::string& link, int limit) {
   if (werewolf_bot_warning) { return; }
-  if (has_owner.at(chat_id)) { return; }
-  if (!need_extend.at(chat_id)) { return; }
+  if (has_owner.count(chat_id) > 0 && has_owner.at(chat_id)) { return; }
+  if (need_extend.count(chat_id) == 0 || !need_extend.at(chat_id)) { return; }
   if (limit <= 0) { return ; }
   std::regex param_regex("\\?start=(.*)");
   std::smatch param_match;
@@ -95,10 +95,10 @@ void tdscript::Client::send_join(std::int64_t chat_id, std::int64_t bot_id, cons
 
 void tdscript::Client::send_extend(std::int64_t chat_id) {
   if (werewolf_bot_warning) { return; }
-  if (!need_extend.at(chat_id)) { return; }
-  if (!has_owner.at(chat_id)) { return; }
-  if (player_count.at(chat_id) >= 5) { return; }
-  if (pending_extend_messages.count(chat_id) != 0 && pending_extend_messages[chat_id].size() > 9) { return; }
+  if (need_extend.count(chat_id) == 0 || !need_extend.at(chat_id)) { return; }
+  if (has_owner.count(chat_id) == 0 || !has_owner.at(chat_id)) { return; }
+  if (player_count.count(chat_id) > 0 && player_count.at(chat_id) >= 5) { return; }
+  if (pending_extend_messages.count(chat_id) > 0 && pending_extend_messages[chat_id].size() > 9) { return; }
   if (last_extent_at.count(chat_id) > 0 && std::time(nullptr) - last_extent_at.at(chat_id) < 5) { return; }
   last_extent_at[chat_id] = std::time(nullptr);
   send_text(chat_id, EXTEND_TEXT);
@@ -125,7 +125,7 @@ void tdscript::Client::process_tasks(std::time_t time) {
     if (pending_extend_messages.count(chat_id) != 0 && !pending_extend_messages[chat_id].empty()) {
       send_extend(chat_id);
     }
-    if (last_extent_at.at(chat_id) && time - last_extent_at[chat_id] > EXTEND_TIME) {
+    if (last_extent_at.count(chat_id) > 0 && time - last_extent_at[chat_id] > EXTEND_TIME) {
       send_extend(chat_id);
     }
   }

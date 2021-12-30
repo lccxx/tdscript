@@ -7,6 +7,7 @@
 
 #include <td/telegram/Client.h>
 #include <td/telegram/td_api.h>
+#include <cmath>
 #include <td/telegram/td_api.hpp>
 
 #include "libdns/client.h"
@@ -159,7 +160,7 @@ namespace tdscript {
   class Client {
    private:
     typedef td::td_api::object_ptr<td::td_api::Object> tdo_ptr;
-    typedef std::function<void(std::vector<std::string>)> callback_t;
+    typedef std::function<void(std::vector<std::vector<char>>)> callback_t;
 
    public:
     std::unique_ptr<td::ClientManager> td_client_manager;
@@ -258,6 +259,15 @@ namespace tdscript {
     inline void send_text(std::int64_t chat_id, std::int64_t reply_id, std::string text, bool no_link_preview) {
       send_html(chat_id, reply_id, std::move(text), no_link_preview, true);
     }
+    inline void send_voice(std::int64_t chat_id, int duration, std::string waveform) {
+      auto send_message = td::td_api::make_object<td::td_api::sendMessage>();
+      send_message->chat_id_ = chat_id;
+      auto message_content = td::td_api::make_object<td::td_api::inputMessageVoiceNote>();
+      message_content->duration_ = duration;
+      message_content->waveform_ = std::move(waveform);
+      send_message->input_message_content_ = std::move(message_content);
+      send_request(std::move(send_message));
+    }
     inline void send_reply(std::int64_t chat_id, std::int64_t reply_id, std::string text) {
       send_text(chat_id, reply_id, std::move(text), false);
     }
@@ -314,11 +324,12 @@ namespace tdscript {
     inline void wiki_get_random_title(const std::string& lang, const std::string& wd, const std::function<void(std::string)>& f) {
       std::string host = lang + wd;
       std::string path = "/w/api.php?action=query&format=json&list=random&rnnamespace=0";
-      send_https_request(host, path, [host, f](const std::vector<std::string> &res) {
+      send_https_request(host, path, [host, f](const std::vector<std::vector<char>> &res) {
         rapidjson::Document data;
-        data.Parse(res[1].c_str());
+        data.Parse(std::string(res[1].begin(), res[1].end()).c_str());
         if (data.HasMember("query")) {
-          f(data["query"]["random"][0]["title"].GetString());
+          std::string title = data["query"]["random"][0]["title"].GetString();
+          f(title);
         }
       });
     }
@@ -330,13 +341,16 @@ namespace tdscript {
     inline void wiki_get_data(const std::string& lang, const std::string& title, const std::string& wd, const std::function<void(std::string)>& f) {
       std::string host = lang + wd;
       std::string path = "/w/api.php?action=parse&format=json&page=" + libdns::urlencode(title);
-      send_https_request(host, path, [f](const std::vector<std::string>& res){ f(res[1]); });
+      send_https_request(host, path, [f](const std::vector<std::vector<char>>& res){
+        f(std::string(res[1].begin(), res[1].end()));
+      });
     }
 
     inline void wiki_get_content(const std::string& lang, const std::string& title, const std::function<void(std::string)>& f) {
       wiki_get_data(lang, title, ".wikipedia.org", [this, f, lang, title](const std::string& res_body) {
         rapidjson::Document data; data.Parse(res_body.c_str());
         if (data.HasMember("error")) {
+          std::string error_info = data["error"]["info"].GetString();
           f(data["error"]["info"].GetString());
         } else if (data.HasMember("parse")) {
           std::string text = data["parse"]["text"]["*"].GetString();
@@ -395,7 +409,7 @@ namespace tdscript {
           });
 
           if (!article_desc.empty()) {
-            article_desc = std::regex_replace(article_desc, std::regex(R"(\[[^]]*\])"), "");
+            article_desc = std::regex_replace(article_desc, std::regex(R"(\[[^\]]*\])"), "");
             std::cout << "'" << title << "': '" << article_desc << "'" << std::endl;
 
             f(article_desc);
@@ -411,11 +425,12 @@ namespace tdscript {
       wiki_get_random_title(lang, ".wiktionary.org", f);
     }
 
-    inline void dict_get_content(const std::string& lang, const std::string& title, const std::function<void(std::string)>& f) {
-      wiki_get_data(lang, title, ".wiktionary.org", [f, lang, title](const std::string& res_body) {
+    inline void dict_get_content(const std::string& lang, const std::string& title, const callback_t& f) {
+      wiki_get_data(lang, title, ".wiktionary.org", [this, f, lang, title](const std::string& res_body) {
         rapidjson::Document data; data.Parse(res_body.c_str());
         if (data.HasMember("error")) {
-          f(data["error"]["info"].GetString());
+          std::string error_info = data["error"]["info"].GetString();
+          f({ std::vector<char>(error_info.begin(), error_info.end()) });
         } else if (data.HasMember("parse")) {
           std::string text = data["parse"]["text"]["*"].GetString();
 
@@ -429,15 +444,17 @@ namespace tdscript {
 
           const std::vector<std::string> FUNCTIONS =
               { "Article", "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun",
-                "Preposition", "Conjunction", "Interjection", "Determiner" };
+                "Preposition", "Conjunction", "Interjection", "Determiner", "Prefix", "Suffix" };
 
-          // languages -> etymologies -> functions -> defines -> examples
+          // languages -> pronunciations -> etymologies -> functions -> defines -> sub-defines -> examples
           std::vector<std::string> ls;
+          std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> ps;
           std::unordered_map<std::string, std::vector<std::string>> es;
           std::unordered_map<std::string, std::vector<std::tuple<std::string, std::string, std::string>>> fs;
           std::unordered_map<std::string, std::vector<std::string>> ds;
+          std::unordered_map<std::string, std::vector<std::string>> ss;
           std::unordered_map<std::string, std::vector<std::string>> xs;
-          xml_each_next(xmlDocGetRootElement(doc)->children, [FUNCTIONS,&ls,&es,&fs,&ds,&xs](auto node) {
+          xml_each_next(xmlDocGetRootElement(doc)->children, [FUNCTIONS,&ls,&ps,&es,&fs,&ds,&ss,&xs](auto node) {
             if (xml_check_eq(node->name, "h2")) {
               for (xmlNode* h2_child = node->children; h2_child; h2_child = h2_child->next) {
                 std::string language = xml_get_prop(h2_child, "id");
@@ -453,8 +470,30 @@ namespace tdscript {
             std::string language = ls.back();
             if (xml_check_eq(node->name, "h3")) {
               for (xmlNode* h3_child = node->children; h3_child; h3_child = h3_child->next) {
-                std::string etymology = xml_get_prop(h3_child, "id");
-                if (etymology.find("Etymology") != std::string::npos) {
+                std::string node_id = xml_get_prop(h3_child, "id");
+                if (node_id == "Pronunciation") {
+                  xml_each_next(node, [language, &ps](auto next) {
+                    if (xml_check_eq(next->name, "ul")) {
+                      xml_each_child(next->children, [language, &ps](auto child) {
+                        if (xml_check_eq(child->name, "audio")) {
+                          std::string duration = xml_get_prop(child, "data-durationhint");
+                          for (xmlNode* audio_child = child->children; audio_child; audio_child = audio_child->next) {
+                            if (xml_check_eq(audio_child->name, "source")) {
+                              std::string src = xml_get_prop(audio_child, "src");
+                              std::cout << duration << ", " << src << std::endl;
+                              ps[language].push_back({ duration, src });
+                              break;
+                            }
+                          }
+                          return 1;
+                        }
+                        return 0;
+                      });
+                      return 1;
+                    }
+                    return 0;
+                  });
+                } else if (node_id.find("Etymology") != std::string::npos) {
                   xml_each_next(node, [language, &es](auto next) {
                     if (xml_check_eq(next->name, "p")) {
                       std::string etymology = xml_get_content(next);
@@ -492,13 +531,14 @@ namespace tdscript {
                     }
                     return 0;
                   });
-                  xml_each_next(node, [language,etymology_i,function,&ds,&xs](auto next) {
+                  xml_each_next(node, [language,etymology_i,function,&ds,&ss,&xs](auto next) {
                     if (xml_check_eq(next->name, "ol")) {
                       std::string define_key = std::string(language).append(std::to_string(etymology_i)).append(function);
                       for (xmlNode* ol_child = next->children; ol_child; ol_child = ol_child->next) {
                         if (xml_check_eq(ol_child->name, "li")) {
                           bool define_found = false;
                           for (xmlNode* ll_child = ol_child->children; ll_child; ll_child = ll_child->next) {
+                            std::cout << "  define ll child name: " << ll_child->name << std::endl;
                             if (xml_check_eq(ll_child->name, "text")
                                     || xml_check_eq(ll_child->name, "span")
                                     || xml_check_eq(ll_child->name, "a")) {
@@ -507,7 +547,7 @@ namespace tdscript {
                               }
                               define_found = true;
                               std::string define = xml_get_content(ll_child);
-                              std::cout << "    '" << define << "'" << std::endl;
+                              std::cout << "    define: '" << define << "'" << std::endl;
                               if (ds[define_key].back().empty()
                                   || ds[define_key].back()[ds[define_key].back().length() - 1] == '('
                                   || define[0] == ')' || define[0] == ',' || define[0] == '.' || define[0] == ';') {
@@ -516,12 +556,29 @@ namespace tdscript {
                                 ds[define_key].back().append(" ").append(define);
                               }
                             }
+                            std::cout << "  defines " << define_key << " size: " << ds[define_key].size() << std::endl;
+                            if (ds[define_key].empty()) {
+                              continue;
+                            }
+                            std::uint8_t define_i = ds[define_key].size() - 1;
+                            if (xml_check_eq(ll_child->name, "ol")) {
+                              for (xmlNode* ll_ol_child = ll_child->children; ll_ol_child; ll_ol_child = ll_ol_child->next) {
+                                std::cout << "    sub-define ll ol child name: " << ll_ol_child->name << std::endl;
+                                if (xml_check_eq(ll_ol_child->name, "li")) {
+                                  std::string sub_define = xml_get_content(ll_ol_child);
+                                  std::size_t stop_pos = sub_define.find('.');
+                                  sub_define.erase(stop_pos, sub_define.size() - 1 - stop_pos);
+                                  std::cout << "      sub-define: '" << sub_define << "'" << std::endl;
+                                  ss[define_key + std::to_string(define_i)].push_back(sub_define);
+                                }
+                              }
+                            }
                             if (xml_check_eq(ll_child->name, "dl")) {
                               for (xmlNode* dl_child = ll_child->children; dl_child; dl_child = dl_child->next) {
                                 if (xml_check_eq(dl_child->name, "dd")) {
-                                  std::cout << "      '" << xml_get_content(dl_child) << "'" << std::endl;
-                                  std::uint8_t define_i = ds[define_key].size() - 1;
-                                  xs[define_key + std::to_string(define_i)].push_back(xml_get_content(dl_child));
+                                  std::string example = xml_get_content(dl_child);
+                                  std::cout << "      example: '" << example << "'" << std::endl;
+                                  xs[define_key + std::to_string(define_i)].push_back(example);
                                 }
                               }
                               break;
@@ -541,46 +598,52 @@ namespace tdscript {
           });
 
           if (!ls.empty()) {
-            auto print_functions = [](
-                const std::string& lang, bool lang_found,
-                const std::unordered_map<std::string, std::vector<std::string>>& ds,
-                const std::unordered_map<std::string, std::vector<std::string>>& xs,
-                const std::function<void(std::string)>& f,
-                const std::string& language, const std::string& etymology, const std::string& key,
-                const std::vector<std::tuple<std::string, std::string, std::string>>& functions) {
+            auto print_functions =
+                [](const std::string& lang, bool lang_found,
+                    const std::unordered_map<std::string, std::vector<std::string>>& ds,
+                    const std::unordered_map<std::string, std::vector<std::string>>& ss,
+                    const std::unordered_map<std::string, std::vector<std::string>>& xs,
+                    const callback_t& f, const std::string& language, const std::string& etymology, const std::string& key,
+                    const std::vector<std::tuple<std::string, std::string, std::string>>& functions) {
               if (functions.empty()) {
                 return;
               }
-              std::stringstream ss;
+              std::stringstream html;
               if (!language.empty() && std::get<2>(functions[0]) != lang) {
                 if (lang_found) {
                   return;
                 }
-                ss << language << '\n';
+                html << language << '\n';
               }
               if (!etymology.empty() && etymology != std::get<1>(functions[0])) {
-                ss << etymology << '\n';
+                html << etymology << '\n';
               }
               for (const auto& function : functions) {
-                if (ss.rdbuf()->in_avail() != 0) {
-                  ss << '\n';
+                if (html.rdbuf()->in_avail() != 0) {
+                  html << '\n';
                 }
-                ss << std::get<0>(function) << ", " << std::get<1>(function) << "\n";
+                html << std::get<0>(function) << ", " << std::get<1>(function) << "\n";
                 std::string d_key = key + std::get<0>(function);
                 if (ds.count(d_key) > 0) {
                   for (int define_i = 0; define_i < ds.at(d_key).size(); define_i++) {
-                    ss << (define_i + 1) << ". " << ds.at(d_key)[define_i] << "\n";
+                    html << (define_i + 1) << ". " << ds.at(d_key)[define_i] << "\n";
                     std::string x_key = d_key + std::to_string(define_i);
+                    if (ss.count(x_key) > 0) {
+                      for (int sub_define_i = 0; sub_define_i < ss.at(x_key).size(); sub_define_i++) {
+                        html << "  " << (sub_define_i + 1) << ". " << ss.at(x_key)[sub_define_i] << "\n";
+                      }
+                    }
                     if (xs.count(x_key) > 0) {
                       for (const auto &example : xs.at(x_key)) {
-                        ss << "  <i>" << example << "</i>\n";
+                        html << "  <i>" << example << "</i>\n";
                       }
                     }
                   }
                 }
               }
-              if (ss.rdbuf()->in_avail() != 0) {
-                f(ss.str());
+              if (html.rdbuf()->in_avail() != 0) {
+                std::string desc = html.str();
+                f({ std::vector<char>(desc.begin(), desc.end()) });
               }
             };
 
@@ -597,7 +660,24 @@ namespace tdscript {
               }
             }
 
-            for (const auto &language : ls) {
+            for (const auto& language : ls) {
+              if (!ps[language].empty()) {
+                for (const auto& pronunciation : ps[language]) {
+                  std::regex host_path("(upload.wikimedia.org)(.*)");
+                  std::smatch host_path_match;
+                  if (std::regex_search(pronunciation.second, host_path_match, host_path)) {
+                    std::string host = host_path_match[1];
+                    std::string path = host_path_match[2];
+                    std::cout << "get pronunciation: https://" << host << path << std::endl;
+                    send_https_request(host, path, [f, pronunciation](std::vector<std::vector<char>> res) {
+                      std::string type = "Pronunciation";
+                      std::string duration = pronunciation.first;
+                      f({ std::vector<char>(type.begin(), type.end()),
+                          std::vector<char>(duration.begin(), duration.end()), res[1] });
+                    });
+                  }
+                }
+              }
               if (!es[language].empty()) {
                 for (int etymology_i = 0; etymology_i < es[language].size(); etymology_i++) {
                   std::string etymology = es[language][etymology_i];
@@ -605,17 +685,17 @@ namespace tdscript {
                   auto functions = fs[key];
                   if (etymology_i > 0) {
                     task_queue[std::time(nullptr)
-                        + etymology_i].push_back([lang,lang_found,ds,xs,f,print_functions,language,etymology,key,functions]() {
-                      print_functions(lang, lang_found, ds, xs, f, language, etymology, key, functions);
+                        + etymology_i].push_back([lang,lang_found,ds,ss,xs,f,print_functions,language,etymology,key,functions]() {
+                      print_functions(lang, lang_found, ds, ss, xs, f, language, etymology, key, functions);
                     });
                   } else {
-                    print_functions(lang, lang_found, ds, xs, f, language, etymology, key, functions);
+                    print_functions(lang, lang_found, ds, ss, xs, f, language, etymology, key, functions);
                   }
                 }
               } else {
                 std::string key = language + "0";
                 auto functions = fs[key];
-                print_functions(lang, lang_found, ds, xs, f, language, "", key, functions);
+                print_functions(lang, lang_found, ds, ss, xs, f, language, "", key, functions);
               }
             }
           }
@@ -676,7 +756,18 @@ namespace tdscript {
     }
 
     inline void process_dict(std::int64_t chat_id, const std::string &lang, const std::string &title) {
-      dict_get_content(lang, title, [this, chat_id](auto desc) { send_html(chat_id, desc); });
+      dict_get_content(lang, title, [this, chat_id](auto desc) {
+        if (desc.size() == 1) {
+          send_html(chat_id, std::string(desc[0].begin(), desc[0].end()));
+        } else if (desc.size() > 1) {
+          std::string type(desc[0].begin(), desc[0].end());
+          if (type == "Pronunciation") {
+            int duration = std::ceil(std::stof(std::string(desc[1].begin(), desc[1].end())));
+            std::string wave(desc[2].begin(), desc[2].end());
+            send_voice(chat_id, duration, wave);
+          }
+        }
+      });
     }
   };  // class Client
 }  // namespace tdscript

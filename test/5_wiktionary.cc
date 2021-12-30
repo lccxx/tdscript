@@ -22,31 +22,30 @@ int main() {
 
   std::string lang = "en";
 
-  std::int8_t callback_count = 0;
-  client.dict_get_content(lang, "raffle", [&](auto desc) {
-    std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
-
-    if (++callback_count > 1) {
-      tdscript::stop = true;
-    }
-  });
-
   client.dict_get_random_title(lang, [&client, lang](auto title) {
     assert(!title.empty());
 
     std::cout << "random title: '" << title << "'\n";
 
     client.dict_get_content(lang, title, [lang](auto desc) {
-      std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
+      assert(desc.size() > 0);
+      assert(desc[0].size() > 0);
+      std::cout << "got: \n-------------\n" << std::string(desc[0].begin(), desc[0].end()) << "\n-----------" << std::endl;
+
+      tdscript::stop = true;
     });
   });
 
   client.dict_get_content(lang, "the", [lang](auto desc) {
-    std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
+    assert(desc.size() > 0);
+    assert(desc[0].size() > 0);
+    std::cout << "got: \n-------------\n" << std::string(desc[0].begin(), desc[0].end()) << "\n-----------" << std::endl;
   });
 
   client.dict_get_content(lang, "franchise", [lang](auto desc) {
-    std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
+    assert(desc.size() > 0);
+    assert(desc[0].size() > 0);
+    std::cout << "got: \n-------------\n" << std::string(desc[0].begin(), desc[0].end()) << "\n-----------" << std::endl;
   });
 
   for (int i = 0; i < 999 && !tdscript::stop; i++) {

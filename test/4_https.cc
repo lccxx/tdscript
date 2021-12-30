@@ -15,26 +15,30 @@ int main() {
   tdscript::data_ready = true;
   auto client = tdscript::Client(0);
 
-  client.send_https_request("google.com", "/?1", [](const std::vector<std::string>& res) {
-    if (res[1].find("/?1") != std::string::npos) {
+  client.send_https_request("google.com", "/?1", [](const std::vector<std::vector<char>>& res) {
+    std::string body(res[1].begin(), res[1].end());
+    if (body.find("/?1") != std::string::npos) {
       tdscript::player_count[0] = 1;
     }
   });
 
-  client.send_https_request("google.com", "/?2", [](const std::vector<std::string>& res) {
-    if (res[1].find("/?2") != std::string::npos) {
+  client.send_https_request("google.com", "/?2", [](const std::vector<std::vector<char>>& res) {
+    std::string body(res[1].begin(), res[1].end());
+    if (body.find("/?2") != std::string::npos) {
       tdscript::player_count[1] = 1;
     }
   });
 
-  client.send_https_request("google.com", "/?3333", [](const std::vector<std::string>& res) {
-    if (res[1].find("/?3333") != std::string::npos) {
+  client.send_https_request("google.com", "/?3333", [](const std::vector<std::vector<char>>& res) {
+    std::string body(res[1].begin(), res[1].end());
+    if (body.find("/?3333") != std::string::npos) {
       tdscript::player_count[2] = 1;
     }
   });
 
-  client.send_https_request("google.com", "/?451592", [](const std::vector<std::string>& res) {
-    if (res[1].find("/?451592") != std::string::npos) {
+  client.send_https_request("google.com", "/?451592", [](const std::vector<std::vector<char>>& res) {
+    std::string body(res[1].begin(), res[1].end());
+    if (body.find("/?451592") != std::string::npos) {
       tdscript::player_count[3] = 1;
     }
   });

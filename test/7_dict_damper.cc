@@ -8,14 +8,14 @@ int main() {
 
   std::string lang = "en";
 
-  std::int8_t callback_count = 0;
-  client.dict_get_content(lang, "exerting", [&](auto content) {
+  client.dict_get_content(lang, "damper", [&](auto content) {
     std::string desc = std::string(content[0].begin(), content[0].end());
     std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
 
-    if (++callback_count > 1) {
-      tdscript::stop = true;
+    if (desc.find("deaden vibrations") == std::string::npos) {
+      exit(1);
     }
+    tdscript::stop = true;
   });
 
   for (int i = 0; i < 999 && !tdscript::stop; i++) {

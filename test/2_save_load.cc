@@ -24,6 +24,8 @@ int main() {
 
   std::cout << buffer.GetString() << '\n';
 
+  tdscript::need_extend.count(123) == 0 || tdscript::need_extend.at(123);
+
   assert(false == tdscript::data_ready);
   assert(false == tdscript::save_flag);
 
