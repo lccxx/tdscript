@@ -104,7 +104,8 @@ namespace tdscript {
   }
   inline void trim(std::string &s) { ltrim(s); rtrim(s); }
   inline bool xml_check_eq(const xmlChar *a, const char *b) {
-    int i = 0; do { if (a[i] != b[i]) { return false; } i++; } while (a[i] && b[i]);return true;
+    int i = 0; do { if (a[i] != b[i]) { return false; } i++; } while (a[i] && b[i]);
+    return a[i] == b[i];
   }
 
   inline std::string xml_get_prop(const xmlNode *node, const std::string& name) {
@@ -480,6 +481,7 @@ namespace tdscript {
                   xml_each_next(node, [language, &ps](auto next) {
                     if (xml_check_eq(next->name, "ul")) {
                       xml_each_child(next, [language, &ps](auto child) {
+                        std::cout << "Pronunciation child: " << child->name << std::endl;
                         if (xml_check_eq(child->name, "audio")) {
                           std::string duration = xml_get_prop(child, "data-durationhint");
                           for (xmlNode* audio_child = child->children; audio_child; audio_child = audio_child->next) {
