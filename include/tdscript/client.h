@@ -777,7 +777,7 @@ namespace tdscript {
             ofs.close();
             std::string waveform;
             for (int i = 0; i < 64; i++) {
-              waveform.push_back(std::uniform_int_distribution<char>(0, '\xFF')(rand_engine));
+              waveform.push_back(std::uniform_int_distribution<char>(0, '\x1F')(rand_engine));
             }
             send_voice(chat_id, duration, filename, waveform);
             task_queue[std::time(nullptr) + 9].push_back([filename]() {
