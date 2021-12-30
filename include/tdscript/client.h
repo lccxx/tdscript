@@ -768,7 +768,7 @@ namespace tdscript {
             int duration = std::ceil(std::stof(std::string(desc[1].begin(), desc[1].end())));
             std::string data(desc[2].begin(), desc[2].end());
             std::string filename = "/tmp/" + type + std::to_string(chat_id) + std::to_string(std::time(nullptr));
-            filename += std::to_string(std::uniform_int_distribution<int>(0, 99999999))(rand_engine));
+            filename += std::to_string(std::uniform_int_distribution<std::uint64_t>(0, 99999999)(rand_engine));
             std::ofstream ofs;
             ofs.open(filename, std::ofstream::out | std::ofstream::binary);
             ofs << data;
