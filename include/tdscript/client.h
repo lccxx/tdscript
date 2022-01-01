@@ -557,7 +557,16 @@ namespace tdscript {
                                 ds[define_key].push_back("");
                               }
                               define_found = true;
+                              std::string span_class = xml_get_prop(ll_child, "class");
                               std::string define = xml_get_content(ll_child);
+                              if (span_class == "mwe-math-element") {
+                                for (xmlNode *math_child = ll_child->children; math_child; math_child = math_child->next) {
+                                  if (xml_check_eq(math_child->name, "img")) {
+                                    define = xml_get_prop(math_child, "alt");
+                                    break;
+                                  }
+                                }
+                              }
                               std::cout << "    define: '" << define << "'" << std::endl;
                               if (ds[define_key].back().empty()
                                   || ds[define_key].back()[ds[define_key].back().length() - 1] == '('
