@@ -6,22 +6,13 @@ option(WITH_TESTS "make with tests" ON)
 option(WITH_STATIC "link statically" OFF)
 option(WITH_IPV6 "use IPv6 server address" OFF)
 
-if (NOT LIBRESSL_ROOT_DIR)
-  set(LIBRESSL_ROOT_DIR ${PROJECT_BINARY_DIR}/lib/libdns/lib/ssl/lib)
-endif()
-
-if (NOT ZLIB_LIBRARY)
-  set(ZLIB_LIBRARY /usr/lib/libz.a)
-endif()
-
 if (NOT TD_INSTALL_DIR)
   set(TD_INSTALL_DIR "${PROJECT_BINARY_DIR}/lib/td")
   set(Td_DIR "${TD_INSTALL_DIR}/lib/cmake/Td")
 endif()
 
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/lib/libdns/CMake;${CMAKE_MODULE_PATH}")
-
 add_subdirectory(lib)
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/lib/libdns/CMake;${CMAKE_MODULE_PATH}")
 find_package(LibreSSL REQUIRED)
 find_package(Td REQUIRED NO_DEFAULT_PATH)
 

@@ -4,6 +4,10 @@ project(tdscript_lib VERSION 0.1)
 
 add_subdirectory(libdns)
 
+if (NOT ZLIB_LIBRARY)
+  set(ZLIB_LIBRARY /usr/lib/libz.a)
+endif()
+
 set(TD_BUILD_DIR "${PROJECT_BINARY_DIR}/td-build")
 
 if (NOT EXISTS "${TD_INSTALL_DIR}/lib/libtdcore.a")
