@@ -659,9 +659,9 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                             }
                           }
                           std::cout << "    define: '" << define << "'" << std::endl;
-                          if (ds[define_key].back().empty()
-                              || ds[define_key].back()[ds[define_key].back().length() - 1] == '('
-                              || define[0] == ')' || define[0] == ',' || define[0] == '.' || define[0] == ';') {
+                          if (ds[define_key].back().empty() || define.empty()
+                              || ds[define_key].back()[ds[define_key].back().length() - 1] == '(' || define[0] == ')'
+                              || define[0] == ' ' || define[0] == ',' || define[0] == '.' || define[0] == ';') {
                             ds[define_key].back().append(define);
                           } else {
                             ds[define_key].back().append(" ").append(define);
@@ -678,7 +678,9 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                             if (xml_check_eq(ll_ol_child->name, "li")) {
                               std::string sub_define = xml_get_content(ll_ol_child);
                               std::size_t stop_pos = sub_define.find('.');
-                              sub_define.erase(stop_pos, sub_define.size() - 1 - stop_pos);
+                              if (stop_pos != std::string::npos) {
+                                sub_define.erase(stop_pos, sub_define.size() - 1 - stop_pos);
+                              }
                               std::cout << "      sub-define: '" << sub_define << "'" << std::endl;
                               ss[define_key + std::to_string(define_i)].push_back(sub_define);
                             }
