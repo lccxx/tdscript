@@ -643,6 +643,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                         std::cout << "  define ll child name: " << ll_child->name << std::endl;
                         if (xml_check_eq(ll_child->name, "text")
                             || xml_check_eq(ll_child->name, "span")
+                            || xml_check_eq(ll_child->name, "i")
                             || xml_check_eq(ll_child->name, "a")) {
                           if (!define_found) {
                             ds[define_key].push_back("");
@@ -657,6 +658,9 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                                 break;
                               }
                             }
+                          }
+                          if (xml_check_eq(ll_child->name, "i")) {
+                            define = "<i>" + define + "</i>";
                           }
                           std::cout << "    define: '" << define << "'" << std::endl;
                           if (ds[define_key].back().empty() || define.empty()
