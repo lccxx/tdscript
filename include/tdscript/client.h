@@ -130,8 +130,8 @@ namespace tdscript {
   }
 
   // breadth-first search
-  inline void xml_each_next(const xmlNode* node, const std::function<bool(const xmlNode* node)>& f) {
-    std::queue<const xmlNode*> nodes;
+  inline void xml_each_next(xmlNode* node, const std::function<bool(xmlNode* node)>& f) {
+    std::queue<xmlNode*> nodes;
     do {
       if (f(node)) {
         return;
@@ -151,8 +151,8 @@ namespace tdscript {
   }
 
   // depth-first search
-  inline void xml_each_child(const xmlNode* node, const std::function<bool(const xmlNode* node)>& f) {
-    std::deque<const xmlNode*> nodes;
+  inline void xml_each_child(xmlNode* node, const std::function<bool(xmlNode* node)>& f) {
+    std::deque<xmlNode*> nodes;
     do {
       if (f(node)) {
         return;

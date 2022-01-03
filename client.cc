@@ -539,6 +539,30 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
       }
       xmlDocDump(stdout, doc);
 
+      xml_each_next(xmlDocGetRootElement(doc)->children, [](auto node) {
+        if (xml_check_eq(node->name, "span")) {
+          std::string span_class = xml_get_prop(node, "class");
+          if (span_class == "mwe-math-element") {
+            std::string define;
+            for (xmlNode *math_child = node->children; math_child; math_child = math_child->next) {
+              if (xml_check_eq(math_child->name, "img")) {
+                define = xml_get_prop(math_child, "alt");
+                break;
+              }
+            }
+            if (!define.empty()) {
+              for (xmlNode *math_child = node->children; math_child; math_child = math_child->next) {
+                xmlUnlinkNode(math_child);
+              }
+              define = "<math>" + define.append("</math>");
+              xmlNode* math_text = xmlNewText(BAD_CAST define.c_str());
+              xmlAddChild(node, math_text);
+            }
+          }
+        }
+        return 0;
+      });
+
       const std::vector<std::string> FUNCTIONS =
           { "Article", "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun",
             "Preposition", "Conjunction", "Interjection", "Determiner", "Prefix", "Suffix" };
@@ -658,16 +682,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                             ds[define_key].push_back("");
                           }
                           define_found = true;
-                          std::string span_class = xml_get_prop(ll_child, "class");
                           std::string define = xml_get_content(ll_child);
-                          if (span_class == "mwe-math-element") {
-                            for (xmlNode *math_child = ll_child->children; math_child; math_child = math_child->next) {
-                              if (xml_check_eq(math_child->name, "img")) {
-                                define = xml_get_prop(math_child, "alt");
-                                break;
-                              }
-                            }
-                          }
                           if (xml_check_eq(ll_child->name, "i")) {
                             define = "<i>" + define.append("</i>");
                           }
