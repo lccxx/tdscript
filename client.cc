@@ -628,7 +628,16 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                   }
                   std::string word = xml_get_content(next);
                   std::cout << "  " << function << ", " << word << ", " << lang << std::endl;
-                  fs[language + std::to_string(etymology_i)].push_back({ function, word, lang });
+                  std::string function_key = language + std::to_string(etymology_i);
+                  bool function_found = false;
+                  for (const auto& function_row : fs[function_key]) {
+                    if (std::get<0>(function_row) == function && std::get<1>(function_row) == word && std::get<2>(function_row) == lang) {
+                      function_found = true;
+                    }
+                  }
+                  if (!function_found) {
+                    fs[function_key].push_back({function, word, lang});
+                  }
                   return 1;
                 }
                 return 0;
@@ -660,7 +669,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                             }
                           }
                           if (xml_check_eq(ll_child->name, "i")) {
-                            define = "<i>" + define + "</i>";
+                            define = "<i>" + define.append("</i>");
                           }
                           std::cout << "    define: '" << define << "'" << std::endl;
                           if (ds[define_key].back().empty() || define.empty()
