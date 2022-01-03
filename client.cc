@@ -568,7 +568,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
             "Preposition", "Conjunction", "Interjection", "Determiner", "Prefix", "Suffix" };
 
       // languages -> pronunciations -> etymologies -> functions -> defines -> sub-defines -> examples
-      std::vector<std::string> ls;
+      std::vector<std::pair<std::string, std::string>> ls;
       std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> ps;
       std::unordered_map<std::string, std::vector<std::string>> es;
       std::unordered_map<std::string, std::vector<std::tuple<std::string, std::string, std::string>>> fs;
@@ -581,21 +581,21 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
             std::string language = xml_get_prop(h2_child, "id");
             if (!language.empty()) {
               std::cout << "h2, language: '" << language << "'" << std::endl;
-              ls.push_back(language);
+              ls.push_back(std::pair<std::string, std::string>({ language, "" }));
               break;
             }
           }
         }
         if (ls.empty()) { return 0; }
 
-        std::string language = ls.back();
+        std::pair<std::string, std::string>& language = ls.back();
         if (xml_check_eq(node->name, "h3")) {
           for (xmlNode* h3_child = node->children; h3_child; h3_child = h3_child->next) {
             std::string node_id = xml_get_prop(h3_child, "id");
             if (node_id == "Pronunciation") {
-              xml_each_next(node, [language, &ps](auto next) {
+              xml_each_next(node, [&language, &ps](auto next) {
                 if (xml_check_eq(next->name, "ul")) {
-                  xml_each_child(next, [language, &ps](auto child) {
+                  xml_each_child(next->children, [&language, &ps](auto child) {
                     std::cout << "Pronunciation child: " << child->name << std::endl;
                     if (xml_check_eq(child->name, "audio")) {
                       std::string duration = xml_get_prop(child, "data-durationhint");
@@ -607,7 +607,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                           }
                           std::string src = xml_get_prop(audio_child, "src");
                           std::cout << duration << ", " << src << std::endl;
-                          ps[language].push_back({ duration, src });
+                          ps[language.first].push_back({ duration, src });
                           break;
                         }
                       }
@@ -620,11 +620,11 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                 return 0;
               });
             } else if (node_id.find("Etymology") != std::string::npos) {
-              xml_each_next(node, [language, &es](auto next) {
+              xml_each_next(node, [&language, &es](auto next) {
                 if (xml_check_eq(next->name, "p")) {
                   std::string etymology = xml_get_content(next);
                   std::cout << "h3, etymology: '" << etymology << "'" << std::endl;
-                  es[language].push_back(etymology);
+                  es[language.first].push_back(etymology);
                   return 1;
                 }
                 return 0;
@@ -633,7 +633,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
             }
           }
         }
-        std::size_t etymology_i = es[language].empty() ? 0 : es[language].size() - 1;
+        std::size_t etymology_i = es[language.first].empty() ? 0 : es[language.first].size() - 1;
 
         if (xml_check_eq(node->name, "h4") || xml_check_eq(node->name, "h3")) {
           for (xmlNode* h4_child = node->children; h4_child; h4_child = h4_child->next) {
@@ -641,18 +641,19 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
             function = std::regex_replace(function, std::regex("_\\d+"), "");
             if (std::count(FUNCTIONS.begin(), FUNCTIONS.end(), function)) {
               std::cout << "h4, function: '" << function << "'" << std::endl;
-              xml_each_next(node, [language, etymology_i, function, &fs](auto next) {
+              xml_each_next(node, [&language, etymology_i, function, &fs](auto next) {
                 if (xml_check_eq(next->name, "p")) {
                   std::string lang;
                   for (xmlNode* p_child = next->children; p_child; p_child = p_child->next) {
                     if (xml_check_eq(p_child->name, "strong")) {
                       lang = xml_get_prop(p_child, "lang");
+                      language.second = lang;
                       break;
                     }
                   }
                   std::string word = xml_get_content(next);
                   std::cout << "  " << function << ", " << word << ", " << lang << std::endl;
-                  std::string function_key = language + std::to_string(etymology_i);
+                  std::string function_key = language.first + std::to_string(etymology_i);
                   bool function_found = false;
                   for (const auto& function_row : fs[function_key]) {
                     if (std::get<0>(function_row) == function && std::get<1>(function_row) == word && std::get<2>(function_row) == lang) {
@@ -668,7 +669,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
               });
               xml_each_next(node, [language,etymology_i,function,&ds,&ss,&xs](auto next) {
                 if (xml_check_eq(next->name, "ol")) {
-                  std::string define_key = std::string(language).append(std::to_string(etymology_i)).append(function);
+                  std::string define_key = std::string(language.first).append(std::to_string(etymology_i)).append(function);
                   for (xmlNode* ol_child = next->children; ol_child; ol_child = ol_child->next) {
                     if (xml_check_eq(ol_child->name, "li")) {
                       bool define_found = false;
@@ -735,54 +736,50 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
       });
 
       if (!ls.empty()) {
-        auto print_functions =
-            [](const std::string& lang, bool lang_found,
-               const std::unordered_map<std::string, std::vector<std::string>>& ds,
-               const std::unordered_map<std::string, std::vector<std::string>>& ss,
-               const std::unordered_map<std::string, std::vector<std::string>>& xs,
-               const callback_t& f, const std::string& language, const std::string& etymology, const std::string& key,
-               const std::vector<std::tuple<std::string, std::string, std::string>>& functions) {
-              if (functions.empty()) {
-                return;
-              }
-              std::stringstream html;
-              if (!language.empty() && std::get<2>(functions[0]) != lang) {
-                if (lang_found) {
-                  return;
+        auto print_functions = [ds,ss,xs,f](
+            const std::string& lang, bool lang_found, const std::string& language, const std::string& etymology,
+            const std::string& key, const std::vector<std::tuple<std::string, std::string, std::string>>& functions) {
+          if (functions.empty()) {
+            return;
+          }
+          std::stringstream html;
+          if (!language.empty() && std::get<2>(functions[0]) != lang) {
+            if (lang_found) {
+              return;
+            }
+            html << language << '\n';
+          }
+          if (!etymology.empty() && etymology != std::get<1>(functions[0])) {
+            html << etymology << '\n';
+          }
+          for (const auto& function : functions) {
+            if (html.rdbuf()->in_avail() != 0) {
+              html << '\n';
+            }
+            html << std::get<0>(function) << ", " << std::get<1>(function) << "\n";
+            std::string d_key = key + std::get<0>(function);
+            if (ds.count(d_key) > 0) {
+              for (int define_i = 0; define_i < ds.at(d_key).size(); define_i++) {
+                html << (define_i + 1) << ". " << ds.at(d_key)[define_i] << "\n";
+                std::string x_key = d_key + std::to_string(define_i);
+                if (ss.count(x_key) > 0) {
+                  for (int sub_define_i = 0; sub_define_i < ss.at(x_key).size(); sub_define_i++) {
+                    html << "  " << (sub_define_i + 1) << ". " << ss.at(x_key)[sub_define_i] << "\n";
+                  }
                 }
-                html << language << '\n';
-              }
-              if (!etymology.empty() && etymology != std::get<1>(functions[0])) {
-                html << etymology << '\n';
-              }
-              for (const auto& function : functions) {
-                if (html.rdbuf()->in_avail() != 0) {
-                  html << '\n';
-                }
-                html << std::get<0>(function) << ", " << std::get<1>(function) << "\n";
-                std::string d_key = key + std::get<0>(function);
-                if (ds.count(d_key) > 0) {
-                  for (int define_i = 0; define_i < ds.at(d_key).size(); define_i++) {
-                    html << (define_i + 1) << ". " << ds.at(d_key)[define_i] << "\n";
-                    std::string x_key = d_key + std::to_string(define_i);
-                    if (ss.count(x_key) > 0) {
-                      for (int sub_define_i = 0; sub_define_i < ss.at(x_key).size(); sub_define_i++) {
-                        html << "  " << (sub_define_i + 1) << ". " << ss.at(x_key)[sub_define_i] << "\n";
-                      }
-                    }
-                    if (xs.count(x_key) > 0) {
-                      for (const auto &example : xs.at(x_key)) {
-                        html << "  <i>" << example << "</i>\n";
-                      }
-                    }
+                if (xs.count(x_key) > 0) {
+                  for (const auto &example : xs.at(x_key)) {
+                    html << "  <i>" << example << "</i>\n";
                   }
                 }
               }
-              if (html.rdbuf()->in_avail() != 0) {
-                std::string desc = html.str();
-                f({ std::vector<char>(desc.begin(), desc.end()) });
-              }
-            };
+            }
+          }
+          if (html.rdbuf()->in_avail() != 0) {
+            std::string desc = html.str();
+            f({ std::vector<char>(desc.begin(), desc.end()) });
+          }
+        };
 
         bool lang_found = false;
         for (const auto& fkv : fs) {
@@ -798,8 +795,11 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
         }
 
         for (const auto& language : ls) {
-          if (!ps[language].empty()) {
-            for (const auto& pronunciation : ps[language]) {
+          if (lang_found && language.second != lang) {
+            continue;
+          }
+          if (ps.count(language.first) > 0 && !ps[language.first].empty() && lang_found && lang == language.second) {
+            for (const auto &pronunciation : ps[language.first]) {
               std::regex host_path("(upload.wikimedia.org)(.*)");
               std::smatch host_path_match;
               if (std::regex_search(pronunciation.second, host_path_match, host_path)) {
@@ -809,30 +809,29 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                 send_https_request(host, path, [f, pronunciation](std::vector<std::vector<char>> res) {
                   std::string type = "Pronunciation";
                   std::string duration = pronunciation.first;
-                  f({ std::vector<char>(type.begin(), type.end()),
-                      std::vector<char>(duration.begin(), duration.end()), res[1] });
+                  f({std::vector<char>(type.begin(), type.end()),
+                     std::vector<char>(duration.begin(), duration.end()), res[1]});
                 });
               }
             }
           }
-          if (!es[language].empty()) {
-            for (int etymology_i = 0; etymology_i < es[language].size(); etymology_i++) {
-              std::string etymology = es[language][etymology_i];
-              std::string key = language + std::to_string(etymology_i);
+          if (!es[language.first].empty()) {
+            for (int etymology_i = 0; etymology_i < es[language.first].size(); etymology_i++) {
+              std::string etymology = es[language.first][etymology_i];
+              std::string key = language.first + std::to_string(etymology_i);
               auto functions = fs[key];
               if (etymology_i > 0) {
-                task_queue[std::time(nullptr)
-                    + etymology_i].push_back([lang,lang_found,ds,ss,xs,f,print_functions,language,etymology,key,functions]() {
-                  print_functions(lang, lang_found, ds, ss, xs, f, language, etymology, key, functions);
+                task_queue[std::time(nullptr) + etymology_i].push_back([lang,lang_found,print_functions,language,etymology,key,functions]() {
+                  print_functions(lang, lang_found, language.first, etymology, key, functions);
                 });
               } else {
-                print_functions(lang, lang_found, ds, ss, xs, f, language, etymology, key, functions);
+                print_functions(lang, lang_found, language.first, etymology, key, functions);
               }
             }
           } else {
-            std::string key = language + "0";
+            std::string key = language.first + "0";
             auto functions = fs[key];
-            print_functions(lang, lang_found, ds, ss, xs, f, language, "", key, functions);
+            print_functions(lang, lang_found, language.first, "", key, functions);
           }
         }
       }
