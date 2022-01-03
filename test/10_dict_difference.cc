@@ -17,7 +17,7 @@ int main() {
     std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
 
     if (desc != "Pronunciation") {
-      if (desc.find(R"(({\displaystyle \scriptstyle A{\overline {B}}+{\overline {A}}B}))") == std::string::npos) {
+      if (desc.find(R"({\displaystyle \scriptstyle A{\overline {B}}+{\overline {A}}B})") == std::string::npos) {
         exit(1);
       }
     }
