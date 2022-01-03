@@ -20,6 +20,9 @@ int main() {
       if (desc.find("endeavour.") == std::string::npos) {
         exit(1);
       }
+      if (desc.find("quarter-dollar") == std::string::npos) {
+        exit(1);
+      }
     }
 
     if (++callback_count > 1) {
