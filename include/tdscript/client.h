@@ -104,6 +104,16 @@ namespace tdscript {
   }
   inline void trim(std::string &s) { ltrim(s); rtrim(s); }
 
+  inline void text_part_append(std::string& main, const std::string& apart) {
+    if (main.empty() || apart.empty()
+        || main[main.length() - 1] == '(' || apart[0] == ')'
+        || apart[0] == ' ' || apart[0] == ',' || apart[0] == '.' || apart[0] == ';') {
+      main.append(apart);
+    } else {
+      main.append(" ").append(apart);
+    }
+  }
+
   inline bool xml_check_eq(const xmlChar *a, const char *b) {
     int i = 0; do { if (a[i] != b[i]) { return false; } i++; } while (a[i] && b[i]);
     return a[i] == b[i];

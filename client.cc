@@ -672,13 +672,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                             define = "<i>" + define.append("</i>");
                           }
                           std::cout << "    define: '" << define << "'" << std::endl;
-                          if (ds[define_key].back().empty() || define.empty()
-                              || ds[define_key].back()[ds[define_key].back().length() - 1] == '(' || define[0] == ')'
-                              || define[0] == ' ' || define[0] == ',' || define[0] == '.' || define[0] == ';') {
-                            ds[define_key].back().append(define);
-                          } else {
-                            ds[define_key].back().append(" ").append(define);
-                          }
+                          text_part_append(ds[define_key].back(), define);
                         }
                         std::cout << "  defines " << define_key << " size: " << ds[define_key].size() << std::endl;
                         if (ds[define_key].empty()) {
@@ -689,10 +683,12 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                           for (xmlNode* ll_ol_child = ll_child->children; ll_ol_child; ll_ol_child = ll_ol_child->next) {
                             std::cout << "    sub-define ll ol child name: " << ll_ol_child->name << std::endl;
                             if (xml_check_eq(ll_ol_child->name, "li")) {
-                              std::string sub_define = xml_get_content(ll_ol_child);
-                              std::size_t stop_pos = sub_define.find('.');
-                              if (stop_pos != std::string::npos) {
-                                sub_define.erase(stop_pos, sub_define.size() - 1 - stop_pos);
+                              std::string sub_define;
+                              for (xmlNode* sub_child = ll_ol_child->children; sub_child; sub_child = sub_child->next) {
+                                if (xml_check_eq(sub_child->name, "ul")) {
+                                  break;
+                                }
+                                text_part_append(sub_define, xml_get_content(sub_child));
                               }
                               std::cout << "      sub-define: '" << sub_define << "'" << std::endl;
                               ss[define_key + std::to_string(define_i)].push_back(sub_define);
