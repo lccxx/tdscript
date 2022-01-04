@@ -71,6 +71,16 @@ void tdscript::Client::send_html(std::int64_t chat_id, std::int64_t reply_id, st
         { "u", []() { return td::td_api::make_object<td::td_api::textEntityTypeUnderline>(); } },
         { "code", []() { return td::td_api::make_object<td::td_api::textEntityTypeCode>(); } },
     };
+    auto erase_tag = [&text,&entities](std::size_t offset, std::size_t len) {
+      text.erase(offset, len);
+      for (auto& entity : entities) {
+        if (entity->offset_ > offset) {
+          entity->offset_ -= (int)len;
+        } else if (entity->offset_ + entity->length_ > offset) {
+          entity->length_ -= (int)len;
+        }
+      }
+    };
     for (const auto& style : styles) {
       std::string tag_s = "<" + style.first + ">";
       std::string tag_e = "</" + style.first + ">";
@@ -78,12 +88,12 @@ void tdscript::Client::send_html(std::int64_t chat_id, std::int64_t reply_id, st
       do {
         offset1 = text.find(tag_s, offset2);
         if (offset1 == std::string::npos) { break; }
-        text.erase(offset1, tag_s.length());
+        erase_tag(offset1, tag_s.length());
         auto entity = td::td_api::make_object<td::td_api::textEntity>();
         entity->offset_ = ustring_count(text, 0, offset1);
         offset2 = text.find(tag_e, offset1);
         if (offset2 == std::string::npos) { break; }
-        text.erase(offset2, tag_e.length());
+        erase_tag(offset2, tag_e.length());
         entity->length_ = ustring_count(text, offset1, offset2);
         entity->type_ = style.second();
         entities.push_back(std::move(entity));
