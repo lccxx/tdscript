@@ -16,7 +16,7 @@ int main() {
     std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
 
     if (desc != "Pronunciation") {
-      if (desc.find("(a,b,a)") == std::string::npos) {
+      if (desc.find("<code><math>(a,b,a)</math></code>") == std::string::npos) {
         exit(1);
       }
       if (desc.find("\\{a,b\\}") == std::string::npos) {

@@ -64,20 +64,29 @@ void tdscript::Client::send_html(std::int64_t chat_id, std::int64_t reply_id, st
   message_content->text_ = td::td_api::make_object<td::td_api::formattedText>();
   if (!no_html) {
     std::vector<td::td_api::object_ptr<td::td_api::textEntity>> entities;
-    std::size_t offset1, offset2 = 0;
-    do {
-      offset1 = text.find("<i>", offset2);
-      if (offset1 == std::string::npos) { break; }
-      text.erase(offset1, 3);
-      auto entity = td::td_api::make_object<td::td_api::textEntity>();
-      entity->offset_ = ustring_count(text, 0, offset1);
-      offset2 = text.find("</i>", offset1);
-      if (offset2 == std::string::npos) { break; }
-      text.erase(offset2, 4);
-      entity->length_ = ustring_count(text, offset1, offset2);
-      entity->type_ = td::td_api::make_object<td::td_api::textEntityTypeItalic>();
-      entities.push_back(std::move(entity));
-    } while (true);
+    std::vector<std::pair<std::string, std::function<td::td_api::object_ptr<td::td_api::TextEntityType>()>>> styles = {
+        { "b", []() { return td::td_api::make_object<td::td_api::textEntityTypeBold>(); } },
+        { "i", []() { return td::td_api::make_object<td::td_api::textEntityTypeItalic>(); } },
+        { "s", []() { return td::td_api::make_object<td::td_api::textEntityTypeStrikethrough>(); } },
+        { "u", []() { return td::td_api::make_object<td::td_api::textEntityTypeUnderline,>(); } },
+        { "code", []() { return td::td_api::make_object<td::td_api::textEntityTypeCode>(); } },
+    };
+    for (const auto& style : styles) {
+      std::size_t offset1, offset2 = 0;
+      do {
+        offset1 = text.find("<" + style.first + ">", offset2);
+        if (offset1 == std::string::npos) { break; }
+        text.erase(offset1, 3);
+        auto entity = td::td_api::make_object<td::td_api::textEntity>();
+        entity->offset_ = ustring_count(text, 0, offset1);
+        offset2 = text.find("</" + style.first + ">", offset1);
+        if (offset2 == std::string::npos) { break; }
+        text.erase(offset2, 4);
+        entity->length_ = ustring_count(text, offset1, offset2);
+        entity->type_ = style.second();
+        entities.push_back(std::move(entity));
+      } while (true);
+    }
     message_content->text_->entities_ = std::move(entities);
   }
   message_content->text_->text_ = std::move(text);
@@ -554,7 +563,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
               for (xmlNode *math_child = node->children; math_child; math_child = math_child->next) {
                 xmlUnlinkNode(math_child);
               }
-              define = "<math>" + define.append("</math>");
+              define = "<code><math>" + define.append("</math></code>");
               xmlNode* math_text = xmlNewText(BAD_CAST define.c_str());
               xmlAddChild(node, math_text);
             }
@@ -581,7 +590,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
             std::string language = xml_get_prop(h2_child, "id");
             if (!language.empty()) {
               std::cout << "h2, language: '" << language << "'" << std::endl;
-              ls.push_back(std::pair<std::string, std::string>({ language, "" }));
+              ls.emplace_back(language, "");
               break;
             }
           }
@@ -661,7 +670,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                     }
                   }
                   if (!function_found) {
-                    fs[function_key].push_back({function, word, lang});
+                    fs[function_key].emplace_back(function, word, lang);
                   }
                   return 1;
                 }
