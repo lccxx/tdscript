@@ -72,16 +72,18 @@ void tdscript::Client::send_html(std::int64_t chat_id, std::int64_t reply_id, st
         { "code", []() { return td::td_api::make_object<td::td_api::textEntityTypeCode>(); } },
     };
     for (const auto& style : styles) {
+      std::string tag_s = "<" + style.first + ">";
+      std::string tag_e = "</" + style.first + ">";
       std::size_t offset1, offset2 = 0;
       do {
-        offset1 = text.find("<" + style.first + ">", offset2);
+        offset1 = text.find(tag_s, offset2);
         if (offset1 == std::string::npos) { break; }
-        text.erase(offset1, 3);
+        text.erase(offset1, tag_s.length());
         auto entity = td::td_api::make_object<td::td_api::textEntity>();
         entity->offset_ = ustring_count(text, 0, offset1);
-        offset2 = text.find("</" + style.first + ">", offset1);
+        offset2 = text.find(tag_e, offset1);
         if (offset2 == std::string::npos) { break; }
-        text.erase(offset2, 4);
+        text.erase(offset2, tag_e.length());
         entity->length_ = ustring_count(text, offset1, offset2);
         entity->type_ = style.second();
         entities.push_back(std::move(entity));
