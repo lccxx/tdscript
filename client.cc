@@ -68,7 +68,7 @@ void tdscript::Client::send_html(std::int64_t chat_id, std::int64_t reply_id, st
         { "b", []() { return td::td_api::make_object<td::td_api::textEntityTypeBold>(); } },
         { "i", []() { return td::td_api::make_object<td::td_api::textEntityTypeItalic>(); } },
         { "s", []() { return td::td_api::make_object<td::td_api::textEntityTypeStrikethrough>(); } },
-        { "u", []() { return td::td_api::make_object<td::td_api::textEntityTypeUnderline,>(); } },
+        { "u", []() { return td::td_api::make_object<td::td_api::textEntityTypeUnderline>(); } },
         { "code", []() { return td::td_api::make_object<td::td_api::textEntityTypeCode>(); } },
     };
     for (const auto& style : styles) {
