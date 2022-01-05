@@ -33,7 +33,7 @@
 #include <arpa/inet.h>
 
 namespace tdscript {
-  const std::string VERSION = std::to_string(TDSCRIPT_VERSION_MAJOR) + std::string(".") + std::to_string(TDSCRIPT_VERSION_MINOR);
+  const std::string VERSION = std::to_string(TDSCRIPT_VERSION_MAJOR) + "." + std::to_string(TDSCRIPT_VERSION_MINOR);
 
   extern bool stop;
 
@@ -364,6 +364,19 @@ namespace tdscript {
 
     inline void process_dict(std::int64_t chat_id, const std::string &text) {
       process_wiki(chat_id, text, "dict", "wiktionary");
+    }
+
+    inline void process_dict(std::int64_t chat_id, std::int64_t reply_id, const std::string &text) {
+      get_message(chat_id, reply_id, [this,chat_id,text](tdo_ptr update) {
+        if (td::td_api::messages::ID == update->get_id()) {
+          auto& msgs = static_cast<td::td_api::messages*>(update.get())->messages_;
+          if (msgs.size() != 1) { return; }
+          if (td::td_api::messageText::ID == msgs[0]->content_->get_id()) {
+            std::string r_text = static_cast<td::td_api::messageText*>(msgs[0]->content_.get())->text_->text_; trim(r_text);
+            process_wiki(chat_id, text + " " + r_text, "dict", "wiktionary");
+          }
+        }
+      });
     }
 
     void process_dict(std::int64_t chat_id, const std::string &lang, const std::string &title);

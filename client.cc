@@ -268,6 +268,7 @@ void tdscript::Client::process_message(td::td_api::object_ptr<td::td_api::messag
   if (msg && td::td_api::messageSenderUser::ID == msg->sender_id_->get_id()) {
     auto chat_id = msg->chat_id_;
     auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_id_.get())->user_id_;
+    auto reply_id = msg->reply_to_message_id;
     std::string text;
     if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
       text = static_cast<td::td_api::messageText*>(msg->content_.get())->text_->text_;
@@ -284,6 +285,14 @@ void tdscript::Client::process_message(td::td_api::object_ptr<td::td_api::messag
       }
     }
 
+    process_wiki(chat_id, text);
+
+    if (std::regex_search(text, std::regex("\\/[^ ]+ .+"))) {
+      process_dict(chat_id, text);
+    } else if (reply_id) {
+      process_dict(chat_id, reply_id, text);
+    }
+
     process_message(chat_id, msg->id_, user_id, text, link);
   }
 }
@@ -294,9 +303,6 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
   if (user_id == USER_ID_WEREWOLF || user_id == 0) {
     process_werewolf(chat_id, msg_id, user_id, text, link);
   }
-
-  process_wiki(chat_id, text);
-  process_dict(chat_id, text);
 
   if (text == EXTEND_TEXT) {
     pending_extend_messages[chat_id].push_back(msg_id);
