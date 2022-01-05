@@ -652,6 +652,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
           for (xmlNode* h2_child = node->children; h2_child; h2_child = h2_child->next) {
             std::string language = xml_get_prop(h2_child, "id");
             if (!language.empty()) {
+              language = std::regex_replace(language, std::regex("_"), " ");
               std::cout << "h2, language: '" << language << "'" << std::endl;
               ls.emplace_back(language, "");
               break;
