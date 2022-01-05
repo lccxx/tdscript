@@ -33,7 +33,7 @@ namespace tdscript {
 
   bool stop = false;
 
-  const std::string SAVE_FILENAME = std::string(std::getenv("HOME")) + std::string("/.tdscript-save.json");
+  const std::string SAVE_FILENAME = std::string(std::getenv("HOME")) + "/.tdscript-save.json";
   bool save_flag = false;
   bool data_ready = false;
   std::map<std::int64_t, std::int32_t> player_count;
