@@ -566,6 +566,30 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
       }
       xmlDocDump(stdout, doc);
 
+      // check if this page doesn't have any define
+      if (!xml_each_next(xmlDocGetRootElement(doc)->children, [](auto node) { return xml_check_eq(node->name, "h3"); })) {
+        xml_each_next(xmlDocGetRootElement(doc)->children, [this,lang,f](auto node) {
+          std::string node_class = xml_get_prop(node, "class");
+          if (node_class == "disambig-see-also") {
+            xml_each_next(node->children, [this,lang,f](auto next) {
+              if (xml_check_eq(next->name, "a")) {
+                std::string next_title = xml_get_prop(next, "title");
+                std::cout << "redirect title: " << next_title << std::endl;
+                dict_get_content(lang, next_title, f);
+                return 1;
+              }
+              return 0;
+            });
+            return 1;
+          }
+          return 0;
+        });
+
+        xmlFreeDoc(doc);
+        xmlCleanupParser();
+        return;
+      }
+
       xml_each_next(xmlDocGetRootElement(doc)->children, [](auto node) {
         if (xml_check_eq(node->name, "span")) {
           std::string span_class = xml_get_prop(node, "class");

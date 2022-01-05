@@ -141,11 +141,11 @@ namespace tdscript {
   }
 
   // breadth-first search
-  inline void xml_each_next(xmlNode* node, const std::function<bool(xmlNode* node)>& f) {
+  inline bool xml_each_next(xmlNode* node, const std::function<bool(xmlNode* node)>& f) {
     std::queue<xmlNode*> nodes;
     do {
       if (f(node)) {
-        return;
+        return true;
       }
       if (node->children) {
         nodes.push(node);
@@ -159,14 +159,16 @@ namespace tdscript {
         break;
       }
     } while(true);
+
+    return false;
   }
 
   // depth-first search
-  inline void xml_each_child(xmlNode* node, const std::function<bool(xmlNode* node)>& f) {
+  inline bool xml_each_child(xmlNode* node, const std::function<bool(xmlNode* node)>& f) {
     std::deque<xmlNode*> nodes;
     do {
       if (f(node)) {
-        return;
+        return true;
       }
       if (node->next) {
         nodes.push_back(node);
@@ -180,6 +182,8 @@ namespace tdscript {
         break;
       }
     } while(true);
+
+    return false;
   }
 
   class Client {
