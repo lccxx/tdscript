@@ -631,9 +631,12 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
             }
           }
         } else if (xml_check_eq(node->name, "sup")) {
-          std::string node_class = xml_get_prop(node, "class");
-          if (node_class == "reference") {
-            xmlUnlinkNode(node);
+          if (xml_get_prop(node, "class") == "reference") {
+            for (auto next = node->children; next;) {
+              auto next_next = next->next;
+              xmlUnlinkNode(next);
+              next = next_next;
+            }
           }
         }
         return 0;
