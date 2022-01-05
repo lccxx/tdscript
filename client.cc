@@ -592,7 +592,8 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
 
       const std::vector<std::string> FUNCTIONS =
           { "Article", "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun", "Proper noun",
-            "Preposition", "Conjunction", "Interjection", "Determiner", "Prefix", "Suffix" };
+            "Preposition", "Conjunction", "Interjection", "Determiner", "Prefix", "Suffix", "Phrase",
+            "Proverb", "Romanization", "Translingual", "Cuneiform sign" };
 
       // languages -> pronunciations -> etymologies -> functions -> defines -> sub-defines -> examples
       std::vector<std::pair<std::string, std::string>> ls;
