@@ -585,19 +585,20 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
           return 0;
         });
         if (!see_also_found) {
-          xml_each_next(xmlDocGetRootElement(doc)->children, [this,lang,f](auto node) {
+          bool see_found = false;
+          xml_each_child(xmlDocGetRootElement(doc)->children, [this,lang,f,&see_found](auto node) {
             std::cout << "see: " << node->name << std::endl;
-            if (xml_check_eq(node->name, "text") && node->next) {
+            if (see_found) {
+              if (xml_check_eq(node->name, "a")) {
+                std::string node_title = xml_get_prop(node, "title");
+                std::cout << "see redirect title: " << node_title << std::endl;
+                dict_get_content(lang, node_title, f);
+                return 1;
+              }
+            } else if (xml_check_eq(node->name, "text")) {
               std::cout << "  '" << xml_get_content(node) << "'" << std::endl;
               if (xml_get_content(node).find(" see") != std::string::npos) {
-                for (auto& next = node->next->children; next; next = next->next) {
-                  if (xml_check_eq(next->name, "a")) {
-                    std::string next_title = xml_get_prop(next, "title");
-                    std::cout << "see redirect title: " << next_title << std::endl;
-                    dict_get_content(lang, next_title, f);
-                    return 1;
-                  }
-                }
+                see_found = true;
               }
             }
             return 0;
