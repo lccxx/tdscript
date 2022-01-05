@@ -206,7 +206,7 @@ namespace tdscript {
 
     inline void send_request(td::td_api::object_ptr<td::td_api::Function> f, std::function<void(tdo_ptr)> callback) {
       std::cout << "send " << (current_query_id + 1) << ": " << td::td_api::to_string(f) << std::endl;
-      td_client_manager->send(client_id, current_query_id++, std::move(f));
+      td_client_manager->send(client_id, ++current_query_id, std::move(f));
       query_callbacks[current_query_id] = std::move(callback);
     }
 
