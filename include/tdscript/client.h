@@ -112,6 +112,17 @@ namespace tdscript {
     } else {
       main.append(" ").append(apart);
     }
+    std::vector<std::pair<std::string, std::size_t>> spaces = { { "  ", 1 }, { " .", 1 }, { "\u200B", 3 } };
+    for (const auto& space : spaces) {
+      std::size_t pos = 0;
+      do {
+        pos = main.find(space.first, pos);
+        if (pos == std::string::npos) {
+          break;
+        }
+        main.erase(pos, space.second);
+      } while (true);
+    }
   }
 
   inline bool xml_check_eq(const xmlChar *a, const char *b) {
@@ -373,9 +384,9 @@ namespace tdscript {
           if (msgs.size() != 1) { return; }
           if (td::td_api::messageText::ID == msgs[0]->content_->get_id()) {
             std::string r_text = static_cast<td::td_api::messageText*>(msgs[0]->content_.get())->text_->text_; trim(r_text);
-            std::smatch work_match;
-            if (std::regex_search(r_text, work_match, std::regex("[a-zA-Z]+"))) {
-              std::string word = work_match[0];
+            std::smatch word_match;
+            if (std::regex_search(r_text, word_match, std::regex("[a-zA-Z]+"))) {
+              std::string word = word_match[0];
               process_wiki(chat_id, text + " " + word, "dict", "wiktionary");
             } else {
               process_wiki(chat_id, text, "dict", "wiktionary");
