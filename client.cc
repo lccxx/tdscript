@@ -268,7 +268,7 @@ void tdscript::Client::process_message(td::td_api::object_ptr<td::td_api::messag
   if (msg && td::td_api::messageSenderUser::ID == msg->sender_id_->get_id()) {
     auto chat_id = msg->chat_id_;
     auto user_id = static_cast<td::td_api::messageSenderUser*>(msg->sender_id_.get())->user_id_;
-    auto reply_id = msg->reply_to_message_id;
+    auto reply_id = msg->reply_to_message_id_;
     std::string text;
     if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
       text = static_cast<td::td_api::messageText*>(msg->content_.get())->text_->text_;
