@@ -568,13 +568,13 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
 
       // check if this page doesn't have any define
       if (!xml_each_next(xmlDocGetRootElement(doc)->children, [](auto node) { return xml_check_eq(node->name, "h3"); })) {
-        xml_each_next(xmlDocGetRootElement(doc)->children, [this,lang,f](auto node) {
+        bool see_also_found = xml_each_next(xmlDocGetRootElement(doc)->children, [this,lang,f](auto node) {
           std::string node_class = xml_get_prop(node, "class");
           if (node_class == "disambig-see-also") {
             xml_each_next(node->children, [this,lang,f](auto next) {
               if (xml_check_eq(next->name, "a")) {
                 std::string next_title = xml_get_prop(next, "title");
-                std::cout << "redirect title: " << next_title << std::endl;
+                std::cout << "see also redirect title: " << next_title << std::endl;
                 dict_get_content(lang, next_title, f);
                 return 1;
               }
@@ -584,6 +584,25 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
           }
           return 0;
         });
+        if (!see_also_found) {
+          xml_each_next(xmlDocGetRootElement(doc)->children, [this,lang,f](auto node) {
+            std::cout << "see: " << node->name << std::endl;
+            if (xml_check_eq(node->name, "text") && node->next) {
+              std::cout << "  '" << xml_get_content(node) << "'" << std::endl;
+              if (xml_get_content(node).find(" see") != std::string::npos) {
+                for (auto& next = node->next->children; next; next = next->next) {
+                  if (xml_check_eq(next->name, "a")) {
+                    std::string next_title = xml_get_prop(next, "title");
+                    std::cout << "see redirect title: " << next_title << std::endl;
+                    dict_get_content(lang, next_title, f);
+                    return 1;
+                  }
+                }
+              }
+            }
+            return 0;
+          });
+        }
 
         xmlFreeDoc(doc);
         xmlCleanupParser();
