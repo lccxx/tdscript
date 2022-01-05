@@ -9,7 +9,7 @@
 #include <cassert>
 
 int main() {
-  std::unordered_map<std::int64_t, std::int64_t> data = { { 1, 2}, { 2, 3, }, { 3, 4} };
+  std::map<std::int64_t, std::int64_t> data = { { 1, 2}, { 2, 3, }, { 3, 4} };
   rapidjson::StringBuffer buffer;
   rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
   writer.StartObject();

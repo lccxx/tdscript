@@ -10,7 +10,7 @@ int main() {
   tdscript::data_ready = true;
   auto client = tdscript::Client(1);
 
-  std::unordered_map<std::string, std::uint8_t> check_list;
+  std::map<std::string, std::uint8_t> check_list;
 
   for (int i = 0; i < 9; i++) {
     auto res = client.td_client_manager->receive(tdscript::RECEIVE_TIMEOUT_S);

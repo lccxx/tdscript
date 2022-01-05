@@ -27,33 +27,33 @@ namespace tdscript {
       { 981032009, 357659836416, 2753361346560 },
       { 981032009, 357658787840, 2753361346560 },
   };
-  const std::unordered_map<std::int64_t, std::int64_t> STICKS_REPLY_TO = { {2753361346560, 981032009 } };  // msg_id, user_id
-  const std::unordered_map<std::int64_t, std::string> KEY_PLAYER_IDS = { { 981032009, "@TalkIce" } };
-  const std::unordered_map<std::string, std::string> KEY_PLAYERS = { { "KMM", "@JulienKM" } };
+  const std::map<std::int64_t, std::int64_t> STICKS_REPLY_TO = { {2753361346560, 981032009 } };  // msg_id, user_id
+  const std::map<std::int64_t, std::string> KEY_PLAYER_IDS = { { 981032009, "@TalkIce" } };
+  const std::map<std::string, std::string> KEY_PLAYERS = { { "KMM", "@JulienKM" } };
 
   bool stop = false;
 
   const std::string SAVE_FILENAME = std::string(std::getenv("HOME")) + std::string("/.tdscript-save.json");
   bool save_flag = false;
   bool data_ready = false;
-  std::unordered_map<std::int64_t, std::int32_t> player_count;
-  std::unordered_map<std::int64_t, std::uint8_t> has_owner;
-  std::unordered_map<std::int64_t, std::vector<std::int64_t>> pending_extend_messages;
-  std::unordered_map<std::int64_t, std::uint64_t> last_extent_at;
-  std::unordered_map<std::int64_t, std::int64_t> players_message;
-  std::unordered_map<std::int64_t, std::uint8_t> need_extend;
-  std::unordered_map<std::int64_t, std::uint8_t> started;
-  std::unordered_map<std::int64_t, std::uint64_t> last_done_at;
+  std::map<std::int64_t, std::int32_t> player_count;
+  std::map<std::int64_t, std::uint8_t> has_owner;
+  std::map<std::int64_t, std::vector<std::int64_t>> pending_extend_messages;
+  std::map<std::int64_t, std::uint64_t> last_extent_at;
+  std::map<std::int64_t, std::int64_t> players_message;
+  std::map<std::int64_t, std::uint8_t> need_extend;
+  std::map<std::int64_t, std::uint8_t> started;
+  std::map<std::int64_t, std::uint64_t> last_done_at;
 
   std::mt19937 rand_engine = std::mt19937((std::random_device())());
 
-  std::unordered_map<std::int64_t, std::uint64_t> last_start_at;
-  std::unordered_map<std::int64_t, std::vector<std::string>> at_list;  // the '@' list
-  std::unordered_map<std::int64_t, std::vector<std::int64_t>> player_ids;
+  std::map<std::int64_t, std::uint64_t> last_start_at;
+  std::map<std::int64_t, std::vector<std::string>> at_list;  // the '@' list
+  std::map<std::int64_t, std::vector<std::int64_t>> player_ids;
   bool werewolf_bot_warning = false;
 
   std::time_t last_task_at = -1;
-  std::unordered_map<std::time_t, std::vector<std::function<void()>>> task_queue;
+  std::map<std::time_t, std::vector<std::function<void()>>> task_queue;
 }
 
 void tdscript::Client::send_html(std::int64_t chat_id, std::int64_t reply_id, std::string text, bool no_link_preview, bool no_html) {
@@ -590,12 +590,12 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
 
       // languages -> pronunciations -> etymologies -> functions -> defines -> sub-defines -> examples
       std::vector<std::pair<std::string, std::string>> ls;
-      std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> ps;
-      std::unordered_map<std::string, std::vector<std::string>> es;
-      std::unordered_map<std::string, std::vector<std::tuple<std::string, std::string, std::string>>> fs;
-      std::unordered_map<std::string, std::vector<std::string>> ds;
-      std::unordered_map<std::string, std::vector<std::string>> ss;
-      std::unordered_map<std::string, std::vector<std::string>> xs;
+      std::map<std::string, std::vector<std::pair<std::string, std::string>>> ps;
+      std::map<std::string, std::vector<std::string>> es;
+      std::map<std::string, std::vector<std::tuple<std::string, std::string, std::string>>> fs;
+      std::map<std::string, std::vector<std::string>> ds;
+      std::map<std::string, std::vector<std::string>> ss;
+      std::map<std::string, std::vector<std::string>> xs;
       xml_each_next(xmlDocGetRootElement(doc)->children, [FUNCTIONS,&ls,&ps,&es,&fs,&ds,&ss,&xs](auto node) {
         if (xml_check_eq(node->name, "h2")) {
           for (xmlNode* h2_child = node->children; h2_child; h2_child = h2_child->next) {

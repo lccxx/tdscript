@@ -17,7 +17,7 @@
 #include "libxml/parser.h"
 
 #include <stdexcept>
-#include <unordered_map>
+#include <map>
 #include <ctime>
 #include <functional>
 #include <random>
@@ -39,17 +39,17 @@ namespace tdscript {
 
   extern bool save_flag;
   extern bool data_ready;
-  extern std::unordered_map<std::int64_t, std::int32_t> player_count;
-  extern std::unordered_map<std::int64_t, std::uint8_t> has_owner;
-  extern std::unordered_map<std::int64_t, std::vector<std::int64_t>> pending_extend_messages;
-  extern std::unordered_map<std::int64_t, std::uint64_t> last_extent_at;
-  extern std::unordered_map<std::int64_t, std::int64_t> players_message;
-  extern std::unordered_map<std::int64_t, std::uint8_t> need_extend;
+  extern std::map<std::int64_t, std::int32_t> player_count;
+  extern std::map<std::int64_t, std::uint8_t> has_owner;
+  extern std::map<std::int64_t, std::vector<std::int64_t>> pending_extend_messages;
+  extern std::map<std::int64_t, std::uint64_t> last_extent_at;
+  extern std::map<std::int64_t, std::int64_t> players_message;
+  extern std::map<std::int64_t, std::uint8_t> need_extend;
 
   extern std::mt19937 rand_engine;
 
   extern std::time_t last_task_at;
-  extern std::unordered_map<std::time_t, std::vector<std::function<void()>>> task_queue;
+  extern std::map<std::time_t, std::vector<std::function<void()>>> task_queue;
 
   const double RECEIVE_TIMEOUT_S = 0.01;
   const double AUTHORIZE_TIMEOUT_S = 30;
@@ -180,7 +180,7 @@ namespace tdscript {
     std::unique_ptr<td::ClientManager> td_client_manager;
     std::int32_t client_id;
     std::uint64_t current_query_id = 0;
-    std::unordered_map<std::uint64_t, std::function<void(tdo_ptr)>> query_callbacks;
+    std::map<std::uint64_t, std::function<void(tdo_ptr)>> query_callbacks;
     bool authorized = false;
 
     libdns::Client dns_client;
