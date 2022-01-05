@@ -591,7 +591,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
       });
 
       const std::vector<std::string> FUNCTIONS =
-          { "Article", "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun",
+          { "Article", "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun", "Proper noun",
             "Preposition", "Conjunction", "Interjection", "Determiner", "Prefix", "Suffix" };
 
       // languages -> pronunciations -> etymologies -> functions -> defines -> sub-defines -> examples
@@ -666,6 +666,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
           for (xmlNode* h4_child = node->children; h4_child; h4_child = h4_child->next) {
             std::string function = xml_get_prop(h4_child, "id");
             function = std::regex_replace(function, std::regex("_\\d+"), "");
+            function = std::regex_replace(function, std::regex("_"), " ");
             if (std::count(FUNCTIONS.begin(), FUNCTIONS.end(), function)) {
               std::cout << "h4, function: '" << function << "'" << std::endl;
               xml_each_next(node, [&language, etymology_i, function, &fs](auto next) {
