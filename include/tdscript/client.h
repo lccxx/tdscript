@@ -368,6 +368,8 @@ namespace tdscript {
 
     inline void process_dict(std::int64_t chat_id, std::int64_t reply_id, const std::string &text) {
       get_message(chat_id, reply_id, [this,chat_id,text](tdo_ptr update) {
+        std::cout << "callback: " << td::td_api::to_string(update) << std::endl;
+
         if (td::td_api::messages::ID == update->get_id()) {
           auto& msgs = static_cast<td::td_api::messages*>(update.get())->messages_;
           if (msgs.size() != 1) { return; }
