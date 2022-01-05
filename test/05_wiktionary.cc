@@ -36,22 +36,8 @@ int main() {
     });
   });
 
-  client.dict_get_content(lang, "the", [lang](auto desc) {
-    assert(desc.size() > 0);
-    assert(desc[0].size() > 0);
-    std::cout << "got: \n-------------\n" << std::string(desc[0].begin(), desc[0].end()) << "\n-----------" << std::endl;
-  });
-
-  client.dict_get_content(lang, "franchise", [lang](auto desc) {
-    assert(desc.size() > 0);
-    assert(desc[0].size() > 0);
-    std::cout << "got: \n-------------\n" << std::string(desc[0].begin(), desc[0].end()) << "\n-----------" << std::endl;
-  });
-
   for (int i = 0; i < 999 && !tdscript::stop; i++) {
     client.dns_client.receive(tdscript::SOCKET_TIME_OUT_MS);
-
-    client.process_tasks(std::time(nullptr));
   }
 
   if (!tdscript::stop) {

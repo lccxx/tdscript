@@ -327,7 +327,7 @@ namespace tdscript {
     void process_tasks(std::time_t time);
     void process_response(td::ClientManager::Response response);
     void process_message(td::td_api::object_ptr<td::td_api::message> msg);
-    void process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text, const std::string& link);
+    void process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text);
     void process_werewolf(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text, const std::string& link);
 
     inline void wiki_get_random_title(const std::string& lang, const std::string& wd, const std::function<void(std::string)>& f) {

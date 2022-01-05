@@ -259,7 +259,7 @@ void tdscript::Client::process_response(td::ClientManager::Response response) {
     auto chat_id = msg->chat_id_;
     if (td::td_api::messageText::ID == msg->new_content_->get_id()) {
       auto text = static_cast<td::td_api::messageText*>(msg->new_content_.get())->text_->text_;
-      process_message(chat_id, msg_id, 0, text, "");
+      process_message(chat_id, msg_id, 0, text);
     }
   }
 }
@@ -285,24 +285,24 @@ void tdscript::Client::process_message(td::td_api::object_ptr<td::td_api::messag
       }
     }
 
-    process_wiki(chat_id, text);
-
-    if (std::regex_search(text, std::regex("\\/[^ ]+ .+"))) {
-      process_dict(chat_id, text);
-    } else if (reply_id) {
-      process_dict(chat_id, reply_id, text);
+    if (user_id == USER_ID_WEREWOLF || user_id == 0) {
+      process_werewolf(chat_id, msg->id_, user_id, text, link);
     }
 
-    process_message(chat_id, msg->id_, user_id, text, link);
+    process_wiki(chat_id, text);
+
+    if (reply_id && std::regex_search(text, std::regex("\\/[^ ]+"))) {
+      process_dict(chat_id, reply_id, text);
+    } else {
+      process_dict(chat_id, text);
+    }
+
+    process_message(chat_id, msg->id_, user_id, text);
   }
 }
 
-void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text, const std::string& link) {
+void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id, std::int64_t user_id, const std::string& text) {
   std::cout << "msg(" << msg_id << "): " << user_id << " -> " << chat_id << ", " << text << "\n" << std::endl;
-
-  if (user_id == USER_ID_WEREWOLF || user_id == 0) {
-    process_werewolf(chat_id, msg_id, user_id, text, link);
-  }
 
   if (text == EXTEND_TEXT) {
     pending_extend_messages[chat_id].push_back(msg_id);
