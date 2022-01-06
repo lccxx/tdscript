@@ -259,6 +259,7 @@ void tdscript::Client::process_response(td::ClientManager::Response response) {
     auto chat_id = msg->chat_id_;
     if (td::td_api::messageText::ID == msg->new_content_->get_id()) {
       auto text = static_cast<td::td_api::messageText*>(msg->new_content_.get())->text_->text_;
+      process_werewolf(chat_id, msg_id, 0, text, "");
       process_message(chat_id, msg_id, 0, text);
     }
   }
@@ -549,8 +550,8 @@ void tdscript::Client::wiki_get_content(const std::string& lang, const std::stri
   });
 }
 
-void tdscript::Client::dict_get_content(const std::string& lang, const std::string& title, const callback_t& f) {
-  wiki_get_data(lang, title, ".wiktionary.org", [this, f, lang, title](const std::string& res_body) {
+void tdscript::Client::dict_get_content(const std::string& lang, const std::string& title, const std::vector<std::string>& references, const callback_t& f) {
+  wiki_get_data(lang, title, ".wiktionary.org", [this, f, lang, references, title](const std::string& res_body) {
     rapidjson::Document data; data.Parse(res_body.c_str());
     if (data.HasMember("error")) {
       std::string error_info = data["error"]["info"].GetString();
@@ -568,14 +569,23 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
 
       // check if this page doesn't have any define
       if (!xml_each_next(xmlDocGetRootElement(doc)->children, [](auto node) { return xml_check_eq(node->name, "h3"); })) {
-        bool see_also_found = xml_each_next(xmlDocGetRootElement(doc)->children, [this,lang,f](auto node) {
+        auto redirect = [this,lang,references,f](const std::string& next_title) {
+          if (std::count(references.begin(), references.end(), next_title)) {
+            std::string error_info = "Wiktionary does not have any dictionary entry for this term.";
+            return f({ std::vector<char>(error_info.begin(), error_info.end()) });
+          }
+          auto new_refers = references;
+          new_refers.push_back(next_title);
+          dict_get_content(lang, next_title, new_refers, f);
+        };
+        bool see_also_found = xml_each_next(xmlDocGetRootElement(doc)->children, [lang,redirect,f](auto node) {
           std::string node_class = xml_get_prop(node, "class");
           if (node_class == "disambig-see-also") {
-            xml_each_next(node->children, [this,lang,f](auto next) {
+            xml_each_next(node->children, [lang,redirect,f](auto next) {
               if (xml_check_eq(next->name, "a")) {
                 std::string next_title = xml_get_prop(next, "title");
                 std::cout << "see also redirect title: " << next_title << std::endl;
-                dict_get_content(lang, next_title, f);
+                redirect(next_title);
                 return 1;
               }
               return 0;
@@ -586,13 +596,13 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
         });
         if (!see_also_found) {
           bool see_found = false;
-          xml_each_child(xmlDocGetRootElement(doc)->children, [this,lang,f,&see_found](auto node) {
+          xml_each_child(xmlDocGetRootElement(doc)->children, [lang,redirect,f,&see_found](auto node) {
             std::cout << "see: " << node->name << std::endl;
             if (see_found) {
               if (xml_check_eq(node->name, "a")) {
                 std::string node_title = xml_get_prop(node, "title");
                 std::cout << "see redirect title: " << node_title << std::endl;
-                dict_get_content(lang, node_title, f);
+                redirect(node_title);
                 return 1;
               }
             } else if (xml_check_eq(node->name, "text")) {
@@ -643,7 +653,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
       });
 
       const std::vector<std::string> FUNCTIONS =
-          { "Letter", "Numeral", "Article", "Definitions", "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun",
+          { "Letter", "Numeral", "Number", "Article", "Definitions", "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun",
             "Proper noun", "Preposition", "Conjunction", "Interjection", "Determiner", "Root", "Affix", "Prefix", "Suffix",
             "Idiom", "Proverb", "Phrase", "Prepositional phrase", "Romanization", "Symbol",
             "Cuneiform sign", "Han character" };

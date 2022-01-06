@@ -365,7 +365,10 @@ namespace tdscript {
       wiki_get_random_title(lang, ".wiktionary.org", f);
     }
 
-    void dict_get_content(const std::string& lang, const std::string& title, const callback_t& f);
+    void dict_get_content(const std::string& lang, const std::string& title, const std::vector<std::string>& references, const callback_t& f);
+    inline void dict_get_content(const std::string& lang, const std::string& title, const callback_t& f) {
+      dict_get_content(lang, title, {}, f);
+    }
 
     void process_wiki(std::int64_t chat_id, const std::string &text, const std::string& kw, const std::string& domain);
 
