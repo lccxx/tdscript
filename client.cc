@@ -53,7 +53,7 @@ namespace tdscript {
   bool werewolf_bot_warning = false;
 
   std::time_t last_task_at = -1;
-  std::map<std::time_t, std::vector<std::function<void()>>> task_queue;
+  std::map<std::uint64_t, std::vector<std::function<void()>>> task_queue;
 }
 
 void tdscript::Client::send_html(std::int64_t chat_id, std::int64_t reply_id, std::string text, bool no_link_preview, bool no_html) {
@@ -656,8 +656,9 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
 
       const std::vector<std::string> FUNCTIONS =
           { "Letter", "Syllable", "Numeral", "Number", "Article", "Definitions", "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun",
-            "Proper noun", "Preposition", "Conjunction", "Interjection", "Determiner", "Initial", "Preverb", "Root", "Affix", "Prefix", "Suffix",
-            "Idiom", "Proverb", "Phrase", "Prepositional phrase", "Contraction", "Romanization", "Ligature", "Symbol",
+            "Proper noun", "Preposition", "Conjunction", "Interjection", "Determiner", "Initial", "Preverb",
+            "Root", "Affix", "Prefix", "Suffix", "Postposition",
+            "Idiom", "Proverb", "Phrase", "Prepositional phrase", "Contraction", "Romanization", "Ligature", "Ideophone", "Symbol",
             "Cuneiform sign", "Han character" };
 
       // languages -> pronunciations -> etymologies -> functions -> defines -> sub-defines -> examples
@@ -906,11 +907,15 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                 std::string host = host_path_match[1];
                 std::string path = host_path_match[2];
                 std::cout << "get pronunciation: https://" << host << path << std::endl;
-                send_https_request(host, path, [f, pronunciation](std::vector<std::vector<char>> res) {
+                send_https_request(host, path, [f, pronunciation,es,language](const std::vector<std::vector<char>>& res) {
                   std::string type = "Pronunciation";
                   std::string duration = pronunciation.first;
-                  f({std::vector<char>(type.begin(), type.end()),
-                     std::vector<char>(duration.begin(), duration.end()), res[1]});
+                  if (es.count(language.first) > 0) {
+                    task_queue[std::time(nullptr) + es.at(language.first).size()].push_back([f,type,duration,res]() {
+                      f({std::vector<char>(type.begin(), type.end()),
+                         std::vector<char>(duration.begin(), duration.end()), res[1]});
+                    });
+                  }
                 });
               }
             }

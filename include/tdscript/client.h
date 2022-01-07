@@ -49,7 +49,7 @@ namespace tdscript {
   extern std::mt19937 rand_engine;
 
   extern std::time_t last_task_at;
-  extern std::map<std::time_t, std::vector<std::function<void()>>> task_queue;
+  extern std::map<std::uint64_t, std::vector<std::function<void()>>> task_queue;
 
   const double RECEIVE_TIMEOUT_S = 0.01;
   const double AUTHORIZE_TIMEOUT_S = 30;
