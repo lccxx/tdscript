@@ -632,8 +632,10 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
               }
             }
             if (!define.empty()) {
-              for (xmlNode *math_child = node->children; math_child; math_child = math_child->next) {
+              for (xmlNode *math_child = node->children; math_child;) {
+                auto math_child_next = math_child->next;
                 xmlUnlinkNode(math_child);
+                math_child = math_child_next;
               }
               define = "<code><math>" + define.append("</math></code>");
               xmlNode* math_text = xmlNewText(BAD_CAST define.c_str());
@@ -653,9 +655,9 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
       });
 
       const std::vector<std::string> FUNCTIONS =
-          { "Letter", "Numeral", "Number", "Article", "Definitions", "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun",
-            "Proper noun", "Preposition", "Conjunction", "Interjection", "Determiner", "Root", "Affix", "Prefix", "Suffix",
-            "Idiom", "Proverb", "Phrase", "Prepositional phrase", "Romanization", "Symbol",
+          { "Letter", "Syllable", "Numeral", "Number", "Article", "Definitions", "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun",
+            "Proper noun", "Preposition", "Conjunction", "Interjection", "Determiner", "Initial", "Preverb", "Root", "Affix", "Prefix", "Suffix",
+            "Idiom", "Proverb", "Phrase", "Prepositional phrase", "Contraction", "Romanization", "Ligature", "Symbol",
             "Cuneiform sign", "Han character" };
 
       // languages -> pronunciations -> etymologies -> functions -> defines -> sub-defines -> examples
@@ -666,7 +668,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
       std::map<std::string, std::vector<std::string>> ds;
       std::map<std::string, std::vector<std::string>> ss;
       std::map<std::string, std::vector<std::string>> xs;
-      xml_each_next(xmlDocGetRootElement(doc)->children, [FUNCTIONS,&ls,&ps,&es,&fs,&ds,&ss,&xs](auto node) {
+      xml_each_next(xmlDocGetRootElement(doc)->children, [title,FUNCTIONS,&ls,&ps,&es,&fs,&ds,&ss,&xs](auto node) {
         if (xml_check_eq(node->name, "h2")) {
           for (xmlNode* h2_child = node->children; h2_child; h2_child = h2_child->next) {
             std::string language = xml_get_prop(h2_child, "id");
@@ -734,17 +736,22 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
             function = std::regex_replace(function, std::regex("_"), " ");
             if (std::count(FUNCTIONS.begin(), FUNCTIONS.end(), function)) {
               std::cout << "h4, function: '" << function << "'" << std::endl;
-              xml_each_next(node, [&language, etymology_i, function, &fs](auto next) {
-                if (xml_check_eq(next->name, "p")) {
+              xml_each_next(node, [title, &language, etymology_i, function, &fs](auto next) {
+                if (xml_check_eq(next->name, "p") || xml_check_eq(next->name, "strong")) {
                   std::string lang;
-                  for (xmlNode* p_child = next->children; p_child; p_child = p_child->next) {
+                  if (xml_check_eq(next->name, "strong")) {
+                    lang = xml_get_prop(next, "lang");
+                  } else for (xmlNode* p_child = next->children; p_child; p_child = p_child->next) {
                     if (xml_check_eq(p_child->name, "strong")) {
                       lang = xml_get_prop(p_child, "lang");
-                      language.second = lang;
                       break;
                     }
                   }
+                  language.second = lang;
                   std::string word = xml_get_content(next);
+                  if (word.empty()) {
+                    word = title;
+                  }
                   std::cout << "  " << function << ", " << word << ", " << lang << std::endl;
                   std::string function_key = language.first + std::to_string(etymology_i);
                   bool function_found = false;
