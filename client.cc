@@ -617,7 +617,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
             return 0;
           });
           if (!see_found) {
-            xml_each_next(xmlDocGetRootElement(doc)->children, [lang,redirect,f](auto node) {
+            bool definition_found = xml_each_next(xmlDocGetRootElement(doc)->children, [lang,redirect,f](auto node) {
               std::string node_class = xml_get_prop(node, "class");
               if (node_class == "form-of-definition-link") {
                 xml_each_child(node->children, [lang,redirect,f](auto next) {
@@ -633,6 +633,22 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
               }
               return 0;
             });
+            if (!definition_found) {
+              xml_each_next(xmlDocGetRootElement(doc)->children, [lang,redirect,f](auto node) {
+                if (xml_get_content(node).find("–") != std::string::npos
+                    || xml_get_content(node).find('-') != std::string::npos) {
+                  for (auto next = node->next; next; next = next->next) {
+                    if (xml_check_eq(next->name, "a")) {
+                      std::string next_title = xml_get_prop(next, "title");
+                      std::cout << "- redirect title: " << next_title << std::endl;
+                      redirect(next_title);
+                      return 1;
+                    }
+                  }
+                }
+                return 0;
+              });
+            }
           }
         }
 
