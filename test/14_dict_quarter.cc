@@ -10,8 +10,6 @@ int main() {
   auto client = tdscript::Client(0);
 
   std::string lang = "en";
-
-  std::int8_t callback_count = 0;
   client.dict_get_content(lang, "quarter", [&](auto content) {
     std::string desc = std::string(content[0].begin(), content[0].end());
     std::cout << "got: \n-------------\n" << desc << "\n-----------" << std::endl;
@@ -25,9 +23,7 @@ int main() {
       }
     }
 
-    if (++callback_count > 1) {
-      tdscript::stop = true;
-    }
+    tdscript::stop = true;
   });
 
   for (int i = 0; i < 999 && !tdscript::stop; i++) {

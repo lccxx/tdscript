@@ -29,6 +29,8 @@ int main() {
 
   for (int i = 0; i < 999 && !tdscript::stop; i++) {
     client.dns_client.receive(tdscript::SOCKET_TIME_OUT_MS);
+
+    client.process_tasks(std::time(nullptr));
   }
 
   if (!tdscript::stop) {

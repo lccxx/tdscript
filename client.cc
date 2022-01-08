@@ -551,7 +551,8 @@ void tdscript::Client::wiki_get_content(const std::string& lang, const std::stri
 }
 
 void tdscript::Client::dict_get_content(const std::string& lang, const std::string& title, const std::vector<std::string>& references, const callback_t& f) {
-  wiki_get_data(lang, title, ".wiktionary.org", [this, f, lang, references, title](const std::string& res_body) {
+  std::string trim_title = std::regex_replace(title, std::regex("\\/.*"), "");
+  wiki_get_data(lang, trim_title, ".wiktionary.org", [this, f, lang, references, trim_title](const std::string& res_body) {
     rapidjson::Document data; data.Parse(res_body.c_str());
     if (data.HasMember("error")) {
       std::string error_info = data["error"]["info"].GetString();
@@ -568,7 +569,9 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
       xmlDocDump(stdout, doc);
 
       // check if this page doesn't have any define
-      if (!xml_each_next(xmlDocGetRootElement(doc)->children, [](auto node) { return xml_check_eq(node->name, "h3"); })) {
+      if (!xml_each_next(xmlDocGetRootElement(doc)->children, [](auto node) { return xml_check_eq(node->name, "h3"); })
+          || !xml_each_next(xmlDocGetRootElement(doc)->children, [](auto node) { return xml_check_eq(node->name, "p"); })
+          || !xml_each_next(xmlDocGetRootElement(doc)->children, [](auto node) { return xml_check_eq(node->name, "strong"); })) {
         auto redirect = [this,lang,references,f](const std::string& next_title) {
           if (std::count(references.begin(), references.end(), next_title)) {
             std::string error_info = "Wiktionary does not have any dictionary entry for this term.";
@@ -613,6 +616,24 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
             }
             return 0;
           });
+          if (!see_found) {
+            xml_each_next(xmlDocGetRootElement(doc)->children, [lang,redirect,f](auto node) {
+              std::string node_class = xml_get_prop(node, "class");
+              if (node_class == "form-of-definition-link") {
+                xml_each_child(node->children, [lang,redirect,f](auto next) {
+                  if (xml_check_eq(next->name, "a")) {
+                    std::string next_title = xml_get_prop(next, "title");
+                    std::cout << "form of definition redirect title: " << next_title << std::endl;
+                    redirect(next_title);
+                    return 1;
+                  }
+                  return 0;
+                });
+                return 1;
+              }
+              return 0;
+            });
+          }
         }
 
         xmlFreeDoc(doc);
@@ -655,11 +676,12 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
       });
 
       const std::vector<std::string> FUNCTIONS =
-          { "Letter", "Syllable", "Numeral", "Number", "Article", "Definitions", "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun",
-            "Proper noun", "Preposition", "Conjunction", "Interjection", "Determiner", "Initial", "Preverb",
-            "Root", "Affix", "Prefix", "Suffix", "Postposition",
-            "Idiom", "Proverb", "Phrase", "Prepositional phrase", "Contraction", "Romanization", "Ligature", "Ideophone", "Symbol",
-            "Cuneiform sign", "Han character" };
+          { "Letter", "Syllable", "Numeral", "Number", "Punctuation mark", "Article", "Definitions", "Adnominal",
+            "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun",
+            "Proper noun", "Preposition", "Conjunction", "Interjection", "Determiner", "Initial", "Preverb", "Particle",
+            "Root", "Affix", "Prefix", "Suffix", "Postposition", "Classifier",
+            "Idiom", "Proverb", "Phrase", "Prepositional phrase", "Contraction", "Romanization", "Ligature", "Ideophone",
+            "Symbol", "Cuneiform sign", "Han character" };
 
       // languages -> pronunciations -> etymologies -> functions -> defines -> sub-defines -> examples
       std::vector<std::pair<std::string, std::string>> ls;
@@ -669,7 +691,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
       std::map<std::string, std::vector<std::string>> ds;
       std::map<std::string, std::vector<std::string>> ss;
       std::map<std::string, std::vector<std::string>> xs;
-      xml_each_next(xmlDocGetRootElement(doc)->children, [title,FUNCTIONS,&ls,&ps,&es,&fs,&ds,&ss,&xs](auto node) {
+      xml_each_next(xmlDocGetRootElement(doc)->children, [trim_title,FUNCTIONS,&ls,&ps,&es,&fs,&ds,&ss,&xs](auto node) {
         if (xml_check_eq(node->name, "h2")) {
           for (xmlNode* h2_child = node->children; h2_child; h2_child = h2_child->next) {
             std::string language = xml_get_prop(h2_child, "id");
@@ -737,7 +759,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
             function = std::regex_replace(function, std::regex("_"), " ");
             if (std::count(FUNCTIONS.begin(), FUNCTIONS.end(), function)) {
               std::cout << "h4, function: '" << function << "'" << std::endl;
-              xml_each_next(node, [title, &language, etymology_i, function, &fs](auto next) {
+              xml_each_next(node, [trim_title, &language, etymology_i, function, &fs](auto next) {
                 if (xml_check_eq(next->name, "p") || xml_check_eq(next->name, "strong")) {
                   std::string lang;
                   if (xml_check_eq(next->name, "strong")) {
@@ -751,7 +773,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                   language.second = lang;
                   std::string word = xml_get_content(next);
                   if (word.empty()) {
-                    word = title;
+                    word = trim_title;
                   }
                   std::cout << "  " << function << ", " << word << ", " << lang << std::endl;
                   std::string function_key = language.first + std::to_string(etymology_i);
@@ -907,11 +929,12 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                 std::string host = host_path_match[1];
                 std::string path = host_path_match[2];
                 std::cout << "get pronunciation: https://" << host << path << std::endl;
-                send_https_request(host, path, [f, pronunciation,es,language](const std::vector<std::vector<char>>& res) {
+                send_https_request(host, path, [f, pronunciation,fs,language](const std::vector<std::vector<char>>& res) {
                   std::string type = "Pronunciation";
                   std::string duration = pronunciation.first;
-                  if (es.count(language.first) > 0) {
-                    task_queue[std::time(nullptr) + es.at(language.first).size()].push_back([f,type,duration,res]() {
+                  std::string function_key = language.first + "0";
+                  if (fs.count(function_key) > 0) {
+                    task_queue[std::time(nullptr) + fs.at(function_key).size()].push_back([f,type,duration,res]() {
                       f({std::vector<char>(type.begin(), type.end()),
                          std::vector<char>(duration.begin(), duration.end()), res[1]});
                     });
