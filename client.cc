@@ -945,15 +945,15 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                 std::string host = host_path_match[1];
                 std::string path = host_path_match[2];
                 std::cout << "get pronunciation: https://" << host << path << std::endl;
-                send_https_request(host, path, [f, pronunciation,fs,language](const std::vector<std::vector<char>>& res) {
+                send_https_request(host, path, [f, pronunciation,es,language](const std::vector<std::vector<char>>& res) {
                   std::string type = "Pronunciation";
-                  std::string duration = pronunciation.first;
-                  std::string function_key = language.first + "0";
-                  if (fs.count(function_key) > 0) {
-                    task_queue[std::time(nullptr) + fs.at(function_key).size()].push_back([f,type,duration,res]() {
-                      f({std::vector<char>(type.begin(), type.end()),
-                         std::vector<char>(duration.begin(), duration.end()), res[1]});
+                  std::vector<char> duration(pronunciation.first.begin(), pronunciation.first.end());
+                  if (es.count(language.first) > 0 && !es.at(language.first).empty()) {
+                    task_queue[std::time(nullptr) + es.at(language.first).size()].push_back([f,type,duration,res]() {
+                      f({std::vector<char>(type.begin(), type.end()), duration, res[1]});
                     });
+                  } else {
+                    f({std::vector<char>(type.begin(), type.end()), duration, res[1]});
                   }
                 });
               }
