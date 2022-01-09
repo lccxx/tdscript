@@ -7,7 +7,6 @@
 
 #include <td/telegram/Client.h>
 #include <td/telegram/td_api.h>
-#include <cmath>
 #include <td/telegram/td_api.hpp>
 
 #include "libdns/client.h"
@@ -29,6 +28,7 @@
 #include <utility>
 #include <fstream>
 #include <filesystem>
+#include <cmath>
 
 #include <arpa/inet.h>
 
@@ -184,6 +184,44 @@ namespace tdscript {
     } while(true);
 
     return false;
+  }
+
+  inline void xml_clear_content(const xmlNode *node) {
+    for (auto next = node->children; next;) {
+      auto next_next = next->next;
+      xmlUnlinkNode(next);
+      next = next_next;
+    }
+  }
+
+  inline void xml_clear_wiki(xmlNode* root) {
+    xml_each_next(root->children, [](auto node) {
+      if (xml_check_eq(node->name, "span")) {
+        std::string span_class = xml_get_prop(node, "class");
+        if (span_class == "mwe-math-element") {
+          std::string define;
+          for (xmlNode *math_child = node->children; math_child; math_child = math_child->next) {
+            if (xml_check_eq(math_child->name, "img")) {
+              define = xml_get_prop(math_child, "alt");
+              break;
+            }
+          }
+          if (!define.empty()) {
+            xml_clear_content(node);
+            define = "<code><math>" + define.append("</math></code>");
+            xmlNode* math_text = xmlNewText(BAD_CAST define.c_str());
+            xmlAddChild(node, math_text);
+          }
+        }
+      } else if (xml_check_eq(node->name, "sup")) {
+        if (xml_get_prop(node, "class") == "reference") {
+          xml_clear_content(node);
+        }
+      } else if (xml_check_eq(node->name, "style")) {
+        xml_clear_content(node);
+      }
+      return 0;
+    });
   }
 
   class Client {

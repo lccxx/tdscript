@@ -3,6 +3,7 @@
 #include "tdscript/client.h"
 
 #include "libdns/client.h"
+
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/stringbuffer.h"
@@ -338,6 +339,13 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
     }
   }
 
+  if (text.find("Work is finished, my lord!") != std::string::npos) {
+    send_text(chat_id, "/work");
+    task_queue[std::time(nullptr) + 9].push_back([this, chat_id]() {
+      send_text(chat_id, "Sell bread💰");
+    });
+  }
+
   save_flag = true;
 }
 
@@ -491,10 +499,12 @@ void tdscript::Client::wiki_get_content(const std::string& lang, const std::stri
         return;
       }
       xmlDocDump(stdout, doc);
+      xmlNode* root = xmlDocGetRootElement(doc);
+      xml_clear_wiki(root);
 
       std::vector<std::string> desc_find_kws = { "。", " is ", " was ", "." };
       std::string article_desc;
-      xml_each_next(xmlDocGetRootElement(doc)->children, [this, lang, f, desc_find_kws, &article_desc](auto node) {
+      xml_each_next(root->children, [this, lang, f, desc_find_kws, &article_desc](auto node) {
         std::string node_class = xml_get_prop(node, "class");
         std::cout << "node: '" << node->name << (node_class.empty() ? "" : "." + node_class) << "'" << std::endl;
         if (xml_check_eq(node->name, "div") && node_class == "redirectMsg") {
@@ -567,21 +577,23 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
         return;
       }
       xmlDocDump(stdout, doc);
+      xmlNode* root = xmlDocGetRootElement(doc);
+      xml_clear_wiki(root);
 
       // check if this page doesn't have any define
-      if (!xml_each_next(xmlDocGetRootElement(doc)->children, [](auto node) { return xml_check_eq(node->name, "h3"); })
-          || !xml_each_next(xmlDocGetRootElement(doc)->children, [](auto node) { return xml_check_eq(node->name, "p"); })
-          || !xml_each_next(xmlDocGetRootElement(doc)->children, [](auto node) { return xml_check_eq(node->name, "strong"); })) {
-        auto redirect = [this,lang,references,f](const std::string& next_title) {
+      if (!xml_each_next(root->children, [](auto node) { return xml_check_eq(node->name, "h3"); })
+          || !xml_each_next(root->children, [](auto node) { return xml_check_eq(node->name, "p"); })
+          || !xml_each_next(root->children, [](auto node) { return xml_check_eq(node->name, "strong"); })) {
+        std::string error_info = "Wiktionary does not have any dictionary entry for this term.";
+        auto redirect = [this,lang,references,f,error_info](const std::string& next_title) {
           if (std::count(references.begin(), references.end(), next_title)) {
-            std::string error_info = "Wiktionary does not have any dictionary entry for this term.";
             return f({ std::vector<char>(error_info.begin(), error_info.end()) });
           }
           auto new_refers = references;
           new_refers.push_back(next_title);
           dict_get_content(lang, next_title, new_refers, f);
         };
-        bool see_also_found = xml_each_next(xmlDocGetRootElement(doc)->children, [lang,redirect,f](auto node) {
+        bool see_also_found = xml_each_next(root->children, [lang,redirect,f](auto node) {
           std::string node_class = xml_get_prop(node, "class");
           if (node_class == "disambig-see-also") {
             xml_each_next(node->children, [lang,redirect,f](auto next) {
@@ -634,7 +646,7 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
               return 0;
             });
             if (!definition_found) {
-              xml_each_next(xmlDocGetRootElement(doc)->children, [lang,redirect,f](auto node) {
+              bool dash_found = xml_each_next(xmlDocGetRootElement(doc)->children, [lang,redirect,f](auto node) {
                 if (xml_get_content(node).find("–") != std::string::npos
                     || xml_get_content(node).find('-') != std::string::npos) {
                   for (auto next = node->next; next; next = next->next) {
@@ -648,6 +660,9 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                 }
                 return 0;
               });
+              if (!dash_found) {
+                return f({ std::vector<char>(error_info.begin(), error_info.end()) });
+              }
             }
           }
         }
@@ -656,40 +671,6 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
         xmlCleanupParser();
         return;
       }
-
-      xml_each_next(xmlDocGetRootElement(doc)->children, [](auto node) {
-        if (xml_check_eq(node->name, "span")) {
-          std::string span_class = xml_get_prop(node, "class");
-          if (span_class == "mwe-math-element") {
-            std::string define;
-            for (xmlNode *math_child = node->children; math_child; math_child = math_child->next) {
-              if (xml_check_eq(math_child->name, "img")) {
-                define = xml_get_prop(math_child, "alt");
-                break;
-              }
-            }
-            if (!define.empty()) {
-              for (xmlNode *math_child = node->children; math_child;) {
-                auto math_child_next = math_child->next;
-                xmlUnlinkNode(math_child);
-                math_child = math_child_next;
-              }
-              define = "<code><math>" + define.append("</math></code>");
-              xmlNode* math_text = xmlNewText(BAD_CAST define.c_str());
-              xmlAddChild(node, math_text);
-            }
-          }
-        } else if (xml_check_eq(node->name, "sup")) {
-          if (xml_get_prop(node, "class") == "reference") {
-            for (auto next = node->children; next;) {
-              auto next_next = next->next;
-              xmlUnlinkNode(next);
-              next = next_next;
-            }
-          }
-        }
-        return 0;
-      });
 
       const std::vector<std::string> FUNCTIONS =
           { "Letter", "Syllable", "Numeral", "Number", "Punctuation mark", "Article", "Definitions", "Adnominal",
