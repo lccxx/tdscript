@@ -275,6 +275,9 @@ void tdscript::Client::process_message(td::td_api::object_ptr<td::td_api::messag
     if (msg->content_ && td::td_api::messageText::ID == msg->content_->get_id()) {
       text = static_cast<td::td_api::messageText*>(msg->content_.get())->text_->text_;
     }
+    if (msg->content_ && td::td_api::messagePhoto::ID == msg->content_->get_id()) {
+      text = static_cast<td::td_api::messagePhoto*>(msg->content_.get())->caption_->text_;
+    }
     std::string link;
     if (msg->reply_markup_ && td::td_api::replyMarkupInlineKeyboard::ID == msg->reply_markup_->get_id()) {
       auto rows = std::move(static_cast<td::td_api::replyMarkupInlineKeyboard*>(msg->reply_markup_.get())->rows_);
