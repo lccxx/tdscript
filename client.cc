@@ -373,9 +373,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
         int need_num = std::stoi(need_match[1]);
         int earn_num = std::stoi(earn_match[1]);
         if (earn_num - need_num > 10) {
-          task_queue[std::time(nullptr) + 3].push_back([this, chat_id]() {
-            send_text(chat_id, "Attack!⚔️");
-          });
+          // send_text(chat_id, "Attack!⚔️");
         } else {
           send_text(chat_id, "Search opponent👁");
         }
