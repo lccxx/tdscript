@@ -689,7 +689,8 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
           { "Letter", "Syllable", "Numeral", "Number", "Punctuation mark", "Article", "Definitions", "Adnominal",
             "Noun", "Verb", "Participle", "Adjective", "Adverb", "Pronoun",
             "Proper noun", "Preposition", "Conjunction", "Interjection", "Determiner", "Initial", "Preverb", "Particle",
-            "Root", "Affix", "Prefix", "Suffix", "Postposition", "Classifier",
+            "Root", "Affix", "Prefix", "Suffix", "Postposition", "Classifier", "Relative",
+            "Combining form", "Adjectival noun",
             "Idiom", "Proverb", "Phrase", "Prepositional phrase", "Contraction", "Romanization", "Ligature", "Ideophone",
             "Symbol", "Cuneiform sign", "Han character" };
 
@@ -870,23 +871,21 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
 
       if (!ls.empty()) {
         auto print_functions = [ds,ss,xs,f](
-            const std::string& lang, bool lang_found, const std::string& language, const std::string& etymology,
+            const std::string& lang, const std::string& language, const std::string& etymology,
             const std::string& key, const std::vector<std::tuple<std::string, std::string, std::string>>& functions) {
           if (functions.empty()) {
             return;
           }
           std::stringstream html;
           if (!language.empty() && std::get<2>(functions[0]) != lang) {
-            if (lang_found) {
-              return;
-            }
             html << language << '\n';
           }
           if (!etymology.empty() && etymology != std::get<1>(functions[0])) {
             html << etymology << '\n';
           }
           for (const auto& function : functions) {
-            if (html.rdbuf()->in_avail() != 0) {
+            std::cout << "function: " << std::get<0>(function) << ", " << std::get<1>(function) << std::endl;
+            if (html.rdbuf()->in_avail() != 0) {  // html.empty
               html << '\n';
             }
             html << std::get<0>(function) << ", " << std::get<1>(function) << "\n";
@@ -959,17 +958,17 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
               std::string key = language.first + std::to_string(etymology_i);
               auto functions = fs[key];
               if (etymology_i > 0) {
-                task_queue[std::time(nullptr) + etymology_i].push_back([lang,lang_found,print_functions,language,etymology,key,functions]() {
-                  print_functions(lang, lang_found, language.first, etymology, key, functions);
+                task_queue[std::time(nullptr) + etymology_i].push_back([lang,print_functions,language,etymology,key,functions]() {
+                  print_functions(lang, language.first, etymology, key, functions);
                 });
               } else {
-                print_functions(lang, lang_found, language.first, etymology, key, functions);
+                print_functions(lang, language.first, etymology, key, functions);
               }
             }
           } else {
             std::string key = language.first + "0";
             auto functions = fs[key];
-            print_functions(lang, lang_found, language.first, "", key, functions);
+            print_functions(lang, language.first, "", key, functions);
           }
         }
       }

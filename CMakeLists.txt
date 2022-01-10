@@ -18,7 +18,7 @@ find_package(Td REQUIRED NO_DEFAULT_PATH)
 
 configure_file(config.h.in include/${PROJECT_NAME}/config.h)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(LIBRARIES libdns Td::TdStatic LibXml2)
@@ -75,4 +75,5 @@ if (WITH_TESTS)
   add_ctest(test/23_dict_diktuma.cc)
   add_ctest(test/24_dict_somniferum.cc)
   add_ctest(test/25_dict_abk.cc)
+  add_ctest(test/26_dict_so.cc)
 endif (WITH_TESTS)
