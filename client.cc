@@ -361,10 +361,6 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
     if (text.find("The bandits were some strong guys") != std::string::npos) {
       send_text(chat_id, "Send reinforcements! 🗡");
     }
-    if (text.find("You won the battle") == 0
-        || text.find("Our troops, without any problems") == 0) {
-      send_text(chat_id, "Search opponent👁");
-    }
     if (text.find("Your opponent is") == 0) {
       std::smatch need_match;
       std::smatch earn_match;
@@ -373,11 +369,14 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
         int need_num = std::stoi(need_match[1]);
         int earn_num = std::stoi(earn_match[1]);
         if (earn_num - need_num > 10) {
-          // send_text(chat_id, "Attack!⚔️");
+          send_text(chat_id, "Attack!⚔");
         } else {
           send_text(chat_id, "Search opponent👁");
         }
       }
+    }
+    if (text.find("You won the battle") == 0 || text.find("Our troops, without any problems") == 0) {
+      send_text(chat_id, "Search opponent👁");
     }
     if (text.find("you need to send reinforcements") != std::string::npos) {
       send_text(chat_id, "Send reinforcement!🗡");
