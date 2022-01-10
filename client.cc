@@ -361,9 +361,12 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
     if (text.find("The bandits were some strong guys") != std::string::npos) {
       send_text(chat_id, "Send reinforcements! 🗡");
     }
-    if (text.find("Your opponent is") == 0 || text.find("You won the battle") == 0
+    if (text.find("You won the battle") == 0
         || text.find("Our troops, without any problems") == 0
         || text.find("You can fight against other") == 0) {
+      send_text(chat_id, "Search opponent👁");
+    }
+    if (text.find("Your opponent is") == 0) {
       std::smatch need_match;
       std::smatch earn_match;
       if (std::regex_search(text, need_match, std::regex("you need (\\d+)"))
