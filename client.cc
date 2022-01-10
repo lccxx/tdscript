@@ -380,9 +380,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
       }
     }
     if (text.find("you need to send reinforcements") != std::string::npos) {
-      task_queue[std::time(nullptr) + 3].push_back([this, chat_id]() {
-        send_text(chat_id, "Send reinforcement!🗡");
-      });
+      send_text(chat_id, "Send reinforcement!🗡");
     }
   }
 
