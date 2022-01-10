@@ -362,8 +362,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
       send_text(chat_id, "Send reinforcements! 🗡");
     }
     if (text.find("You won the battle") == 0
-        || text.find("Our troops, without any problems") == 0
-        || text.find("You can fight against other") == 0) {
+        || text.find("Our troops, without any problems") == 0) {
       send_text(chat_id, "Search opponent👁");
     }
     if (text.find("Your opponent is") == 0) {
