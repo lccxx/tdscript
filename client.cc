@@ -32,6 +32,8 @@ namespace tdscript {
   const std::map<std::int64_t, std::string> KEY_PLAYER_IDS = { { 981032009, "@TalkIce" } };
   const std::map<std::string, std::string> KEY_PLAYERS = { { "KMM", "@JulienKM" } };
 
+  const std::int64_t USER_ID_VG = 195053715;
+
   bool stop = false;
 
   const std::string SAVE_FILENAME = std::string(std::getenv("HOME")) + "/.tdscript-save.json";
@@ -342,21 +344,40 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
     }
   }
 
-  if (text.find("Work is finished, my lord!") != std::string::npos) {
-    send_text(chat_id, "/work");
-    task_queue[std::time(nullptr) + 9].push_back([this, chat_id]() {
-      send_text(chat_id, "Sell bread💰");
-    });
-  }
-  if (text.find("Bandits attacked a village.") != std::string::npos) {
-    send_text(chat_id, "Run quest🗡");
-  }
-  if (text.find("These bandits were cowards!") != std::string::npos
-      || text.find("Your squad came to the rescue") != std::string::npos) {
-    send_text(chat_id, "⭐️⭐️⭐️Save the village");
-  }
-  if (text.find("The bandits were some strong guys") != std::string::npos) {
-    send_text(chat_id, "Send reinforcements! 🗡");
+  if (user_id == USER_ID_VG) {
+    if (text.find("Work is finished, my lord!") != std::string::npos) {
+      send_text(chat_id, "/work");
+      task_queue[std::time(nullptr) + 9].push_back([this, chat_id]() {
+        send_text(chat_id, "Sell bread💰");
+      });
+    }
+    if (text.find("Bandits attacked a village.") != std::string::npos) {
+      send_text(chat_id, "Run quest🗡");
+    }
+    if (text.find("These bandits were cowards!") != std::string::npos
+        || text.find("Your squad came to the rescue") != std::string::npos) {
+      send_text(chat_id, "⭐️⭐️⭐️Save the village");
+    }
+    if (text.find("The bandits were some strong guys") != std::string::npos) {
+      send_text(chat_id, "Send reinforcements! 🗡");
+    }
+    if (text.find("Your opponent is") == 0 || text.find("You won the battle") == 0 || text.find("Our troops, without any problems") == 0) {
+      std::smatch need_match;
+      std::smatch earn_match;
+      if (std::regex_search(text, need_match, std::regex("you need (\\d+)"))
+            && std::regex_search(text, earn_match, std::regex("be able to earn (\\d+)"))) {
+        int need_num = std::stoi(need_match[1]);
+        int earn_num = std::stoi(earn_match[1]);
+        if (earn_num - need_num > 10) {
+          send_text(chat_id, "Attack!⚔️");
+        } else {
+          send_text(chat_id, "Search opponent👁");
+        }
+      }
+    }
+    if (text.find("you need to send reinforcements") != std::string::npos) {
+      send_text(chat_id, "Send reinforcement!🗡");
+    }
   }
 
   save_flag = true;
