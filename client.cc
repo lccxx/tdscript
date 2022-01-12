@@ -317,7 +317,9 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
 
   const std::regex starting_regex("游戏启动中");
   if (std::regex_search(text, starting_regex)) {
-    for (const auto& at : at_list[chat_id]) { send_text(chat_id, at); }
+    if (user_id == USER_ID_WEREWOLF) {
+      for (const auto &at : at_list[chat_id]) { send_text(chat_id, at); }
+    }
     select_one_randomly(STICKS_STARTING, [this, chat_id](std::size_t i) {
       while (true) {
         std::cout << "selected stick, number: " << i << std::endl;
@@ -805,7 +807,9 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
                       break;
                     }
                   }
-                  language.second = lang;
+                  if (!lang.empty()) {
+                    language.second = lang;
+                  }
                   std::string word = xml_get_content(next);
                   if (word.empty()) {
                     word = trim_title;
@@ -938,19 +942,15 @@ void tdscript::Client::dict_get_content(const std::string& lang, const std::stri
         };
 
         bool lang_found = false;
-        for (const auto& fkv : fs) {
-          for (const auto& function : fkv.second) {
-            if (std::get<2>(function) == lang) {
-              lang_found = true;
-              break;
-            }
-          }
-          if (lang_found) {
+        for (const auto& language : ls) {
+          if (language.second == lang) {
+            lang_found = true;
             break;
           }
         }
 
         for (const auto& language : ls) {
+          std::cout << language.first << ", " << language.second << std::endl;
           if (lang_found && language.second != lang) {
             continue;
           }
