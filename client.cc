@@ -459,8 +459,8 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
     started[chat_id] = 0;
 
     select_one_randomly(STICKS_DONE, [this, chat_id](std::size_t i) {
-      std::int64_t from_chat_id = STICKS_STARTING[i][0];
-      std::int64_t from_msg_id = STICKS_STARTING[i][1];
+      std::int64_t from_chat_id = STICKS_DONE[i][0];
+      std::int64_t from_msg_id = STICKS_DONE[i][1];
       forward_message(chat_id, from_chat_id, from_msg_id);
     });
   }
