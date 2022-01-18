@@ -18,6 +18,9 @@ namespace tdscript {
   const std::string START_TEXT = "/startchaos@werewolfbot";
   const std::int32_t EXTEND_TIME = 123;
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ") + std::to_string(EXTEND_TIME);
+  const std::vector<std::vector<std::int64_t>> STICKS_DONE = {
+    { -681384622, 561193680896 }
+  };
   const std::vector<std::vector<std::int64_t>> STICKS_STARTING = {
       { -681384622, 357654593536 }, { -681384622, 357655642112 },
       { -1001098611371, 2753360297984, 2753361346560 },
@@ -454,6 +457,12 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
   if (std::regex_search(text, done_regex)) {
     last_done_at[chat_id] = std::time(nullptr);
     started[chat_id] = 0;
+
+    select_one_randomly(STICKS_DONE, [this, chat_id](std::size_t i) {
+      std::int64_t from_chat_id = STICKS_STARTING[i][0];
+      std::int64_t from_msg_id = STICKS_STARTING[i][1];
+      forward_message(chat_id, from_chat_id, from_msg_id);
+    });
   }
 }
 

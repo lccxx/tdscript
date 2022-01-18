@@ -4,6 +4,10 @@ project(tdscript_lib VERSION 0.1)
 
 add_subdirectory(libdns)
 
+if (NOT LIBRESSL_ROOT_DIR)
+  set(LIBRESSL_ROOT_DIR ${PROJECT_BINARY_DIR}/libdns/lib/ssl/lib)
+endif()
+
 if (NOT ZLIB_LIBRARY)
   set(ZLIB_LIBRARY /usr/lib/libz.a)
 endif()
