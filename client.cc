@@ -429,6 +429,10 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
     }
   }
 
+  if (user_id != USER_ID_WEREWOLF) {
+    return;
+  }
+
   const std::regex remain_regex("还有 1 分钟|还剩 \\d+ 秒");
   if (std::regex_search(text, remain_regex)) {
     delete_messages(chat_id, pending_extend_messages[chat_id]);
