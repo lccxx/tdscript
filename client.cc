@@ -129,13 +129,12 @@ void tdscript::Client::send_join(std::int64_t chat_id, std::int64_t bot_id, cons
   if (has_owner.count(chat_id) > 0 && has_owner.at(chat_id)) { return; }
   if (need_extend.count(chat_id) == 0 || !need_extend.at(chat_id)) { return; }
   if (limit <= 0) { return ; }
+
   std::regex param_regex("\\?start=(.*)");
   std::smatch param_match;
   std::string param;
   if (std::regex_search(link, param_match, param_regex)) {
-    if (param_match.size() == 2) {
-      param = param_match[1];
-    }
+    param = param_match[1];
   }
 
   auto send_message = td::td_api::make_object<td::td_api::sendBotStartMessage>();
