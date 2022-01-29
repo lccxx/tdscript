@@ -466,7 +466,7 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
 
     std::string text_n = text + "\n";
     std::smatch done_match;
-    if (std::regex_search(text_n, done_match, std::regex("lccc:.* ([^ ]*)\n"))) {
+    if (std::regex_search(text_n, done_match, std::regex("lccc:.* ([^ ]*)\r?\n"))) {
       auto sticks = STICKS_DONE;
       if (done_match[1] == "失败") {
         sticks = STICKS_DONE_FAIL;
