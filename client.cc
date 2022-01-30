@@ -466,7 +466,9 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
 
     std::smatch done_match;
     if (std::regex_search(text, done_match, std::regex("lccc:.* ([^ ]*)\n"))) {
-      bool fail = done_match[1] == "失败";
+      std::string result = done_match[1];
+      bool fail = result == "失败";
+      std::cout << "Game done " << (fail ? "lose" : "win") << ", '" << result << "'" << std::endl;
       select_one_randomly(fail ? STICKS_DONE_FAIL : STICKS_DONE, [this, chat_id](std::size_t i) {
         std::int64_t from_chat_id = STICKS_DONE[i][0];
         std::int64_t from_msg_id = STICKS_DONE[i][1];
