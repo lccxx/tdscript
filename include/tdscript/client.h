@@ -107,7 +107,7 @@ namespace tdscript {
   inline void text_part_append(std::string& main, const std::string& apart) {
     if (main.empty() || apart.empty()
         || main[main.length() - 1] == '(' || apart[0] == ')' || main[main.length() - 1] == '-'
-        || apart[0] == ' ' || apart[0] == ',' || apart[0] == '.' || apart[0] == ';') {
+        || apart[0] == ' ' || apart[0] == ',' || apart[0] == '.' || apart[0] == ';' || apart[0] == '-') {
       main.append(apart);
     } else {
       main.append(" ").append(apart);
