@@ -469,9 +469,10 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
       std::string result = done_match[1];
       bool fail = result == "失败";
       std::cout << "Game done " << (fail ? "lose" : "win") << ", '" << result << "'" << std::endl;
-      select_one_randomly(fail ? STICKS_DONE_FAIL : STICKS_DONE, [this, chat_id](std::size_t i) {
-        std::int64_t from_chat_id = STICKS_DONE[i][0];
-        std::int64_t from_msg_id = STICKS_DONE[i][1];
+      select_one_randomly(fail ? STICKS_DONE_FAIL : STICKS_DONE, [this, fail, chat_id](std::size_t i) {
+        auto stick = fail ? STICKS_DONE_FAIL[i] : STICKS_DONE[i];
+        std::int64_t from_chat_id = stick[0];
+        std::int64_t from_msg_id = stick[1];
         forward_message(chat_id, from_chat_id, from_msg_id);
       });
     }
