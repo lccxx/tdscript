@@ -60,6 +60,7 @@ namespace tdscript {
   std::map<std::int64_t, std::vector<std::string>> at_list;  // the '@' list
   std::map<std::int64_t, std::vector<std::int64_t>> player_ids;
   bool werewolf_bot_warning = false;
+  bool werewolf_bot_banned = true;
 
   std::time_t last_task_at = -1;
   std::map<std::uint64_t, std::vector<std::function<void()>>> task_queue;
@@ -117,6 +118,7 @@ void tdscript::Client::send_html(std::int64_t chat_id, std::int64_t reply_id, st
 }
 
 void tdscript::Client::send_start(std::int64_t chat_id) {
+  if (werewolf_bot_banned) { return; }
   if (werewolf_bot_warning) { return; }
   if (need_extend.count(chat_id) > 0 && need_extend.at(chat_id)) { return; }
   if (started.count(chat_id) > 0 && started.at(chat_id)) { return; }
@@ -128,6 +130,7 @@ void tdscript::Client::send_start(std::int64_t chat_id) {
 }
 
 void tdscript::Client::send_join(std::int64_t chat_id, std::int64_t bot_id, const std::string& link, int limit) {
+  if (werewolf_bot_banned) { return; }
   if (werewolf_bot_warning) { return; }
   if (has_owner.count(chat_id) > 0 && has_owner.at(chat_id)) { return; }
   if (need_extend.count(chat_id) == 0 || !need_extend.at(chat_id)) { return; }
@@ -153,6 +156,7 @@ void tdscript::Client::send_join(std::int64_t chat_id, std::int64_t bot_id, cons
 }
 
 void tdscript::Client::send_extend(std::int64_t chat_id) {
+  if (werewolf_bot_banned) { return; }
   if (werewolf_bot_warning) { return; }
   if (need_extend.count(chat_id) == 0 || !need_extend.at(chat_id)) { return; }
   if (has_owner.count(chat_id) == 0 || !has_owner.at(chat_id)) { return; }
