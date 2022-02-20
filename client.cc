@@ -20,10 +20,10 @@ namespace tdscript {
   const std::int32_t EXTEND_TIME = 123;
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ") + std::to_string(EXTEND_TIME);
   const std::vector<std::vector<std::int64_t>> STICKS_DONE = {
-    { -681384622, 561193680896 }
+    { -681384622, 94371840 }
   };
   const std::vector<std::vector<std::int64_t>> STICKS_DONE_FAIL = {
-    { -681384622, 582811123712 }
+    { -681384622, 95420416 }
   };
   const std::vector<std::vector<std::int64_t>> STICKS_STARTING = {
       { -681384622, 357654593536 }, { -681384622, 357655642112 },
