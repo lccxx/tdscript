@@ -15,6 +15,7 @@
 
 namespace tdscript {
   const std::int64_t USER_ID_WEREWOLF = 175844556;
+  const std::string USER_NAME_MYSELF = "lcc";
   const std::string START_TEXT = "/startchaos@werewolfbot";
   const std::int32_t EXTEND_TIME = 123;
   const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ") + std::to_string(EXTEND_TIME);
@@ -42,7 +43,7 @@ namespace tdscript {
 
   bool stop = false;
 
-  const std::string SAVE_FILENAME = std::string(std::getenv("HOME")) + "/.tdscript-save.json";
+  const std::string SAVE_FILENAME = std::string(std::getenv("HOME")) + "/." + USER_NAME_MYSELF + "-tdscript-save.json";
   bool save_flag = false;
   bool data_ready = false;
   std::map<std::int64_t, std::int32_t> player_count;
@@ -64,6 +65,20 @@ namespace tdscript {
 
   std::time_t last_task_at = -1;
   std::map<std::uint64_t, std::vector<std::function<void()>>> task_queue;
+}
+
+void tdscript::Client::send_parameters() {
+  auto parameters = td::td_api::make_object<td::td_api::tdlibParameters>();
+  parameters->database_directory_ = std::string(std::getenv("HOME")) + "/." + USER_NAME_MYSELF + "-tdscript";
+  parameters->use_message_database_ = true;
+  parameters->use_secret_chats_ = false;
+  parameters->api_id_ = std::stoi(std::getenv("TG_API_ID"));
+  parameters->api_hash_ = std::getenv("TG_API_HASH");
+  parameters->system_language_code_ = "en";
+  parameters->device_model_ = "Desktop";
+  parameters->application_version_ = VERSION;
+  parameters->enable_storage_optimizer_ = true;
+  send_request(td::td_api::make_object<td::td_api::setTdlibParameters>(std::move(parameters)));
 }
 
 void tdscript::Client::send_html(std::int64_t chat_id, std::int64_t reply_id, std::string text, bool no_link_preview, bool no_html) {
@@ -429,7 +444,7 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
   }
 
   if (players_message.count(chat_id) > 0 && msg_id == players_message.at(chat_id)) {
-    const std::regex owner_regex("lccc");
+    const std::regex owner_regex(USER_NAME_MYSELF);
     if (std::regex_search(text, owner_regex)) {
       has_owner[chat_id] = 1;
     }
@@ -469,7 +484,7 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
     started[chat_id] = 0;
 
     std::smatch done_match;
-    if (std::regex_search(text, done_match, std::regex("lccc:.* ([^ ]*)\n"))) {
+    if (std::regex_search(text, done_match, std::regex(USER_NAME_MYSELF + ":.* ([^ ]*)\n"))) {
       std::string result = done_match[1];
       bool fail = result == "失败";
       std::cout << "Game done " << (fail ? "lose" : "win") << ", '" << result << "'" << std::endl;

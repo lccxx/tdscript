@@ -263,19 +263,7 @@ namespace tdscript {
       query_callbacks[current_query_id] = std::move(callback);
     }
 
-    inline void send_parameters() {
-      auto parameters = td::td_api::make_object<td::td_api::tdlibParameters>();
-      parameters->database_directory_ = std::string(std::getenv("HOME")).append("/").append(".tdlib");
-      parameters->use_message_database_ = true;
-      parameters->use_secret_chats_ = false;
-      parameters->api_id_ = std::stoi(std::getenv("TG_API_ID"));
-      parameters->api_hash_ = std::getenv("TG_API_HASH");
-      parameters->system_language_code_ = "en";
-      parameters->device_model_ = "Desktop";
-      parameters->application_version_ = VERSION;
-      parameters->enable_storage_optimizer_ = true;
-      send_request(td::td_api::make_object<td::td_api::setTdlibParameters>(std::move(parameters)));
-    }
+    void send_parameters();
 
     inline void send_code() {
       std::cout << "Enter authentication code: " << std::flush;
