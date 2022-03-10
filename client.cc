@@ -373,9 +373,15 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
   if (user_id == USER_ID_VG) {
     if (text.find("Work is finished, my lord!") != std::string::npos) {
       send_text(chat_id, "/work");
-      task_queue[std::time(nullptr) + 9].push_back([this, chat_id]() {
-        send_text(chat_id, "Sell bread💰");
-      });
+    }
+    if (text.find("You start to work and harvest") != std::string::npos) {
+      send_text(chat_id, "Sell bread💰");
+    }
+    if (text.find("Your fields are filled.") != std::string::npos) {
+      send_text(chat_id, "/harvest");
+    }
+    if (text.find("You sold") != std::string::npos && text.find("/work") != std::string::npos) {
+      send_text(chat_id, "/work");
     }
     if (text.find("Bandits attacked a village.") != std::string::npos) {
       send_text(chat_id, "Run quest🗡");
