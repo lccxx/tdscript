@@ -14,10 +14,10 @@
 #include <utility>
 
 namespace tdscript {
-  const std::int64_t USER_ID_WEREWOLF = 175844556;
-  const std::string START_TEXT = "/startchaos@werewolfbot";
+  const std::int64_t USER_ID_WEREWOLF = 365229753;  // @shenl_werewolfbot 365229753 or @werewolfbot 175844556;
+  const std::string START_TEXT = "/startchaos@shenl_werewolfbot";
   const std::int32_t EXTEND_TIME = 123;
-  const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ") + std::to_string(EXTEND_TIME);
+  const std::string EXTEND_TEXT = std::string("/extend@shenl_werewolfbot ") + std::to_string(EXTEND_TIME);
   const std::vector<std::vector<std::int64_t>> STICKS_DONE = {
     { -681384622, 561193680896 }
   };
@@ -60,7 +60,7 @@ namespace tdscript {
   std::map<std::int64_t, std::vector<std::string>> at_list;  // the '@' list
   std::map<std::int64_t, std::vector<std::int64_t>> player_ids;
   bool werewolf_bot_warning = false;
-  bool werewolf_bot_banned = true;
+  bool werewolf_bot_banned = false;
 
   std::time_t last_task_at = -1;
   std::map<std::uint64_t, std::vector<std::function<void()>>> task_queue;
