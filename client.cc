@@ -14,11 +14,11 @@
 #include <utility>
 
 namespace tdscript {
-  const std::int64_t USER_ID_WEREWOLF = 175844556;
+  const std::int64_t USER_ID_WEREWOLF = 365229753;  // @shenl_werewolfbot 365229753 or @werewolfbot 175844556;
   const std::string USER_NAME_MYSELF = "lcc";
-  const std::string START_TEXT = "/startchaos@werewolfbot";
+  const std::string START_TEXT = "/startchaos@shenl_werewolfbot";
   const std::int32_t EXTEND_TIME = 123;
-  const std::string EXTEND_TEXT = std::string("/extend@werewolfbot ") + std::to_string(EXTEND_TIME);
+  const std::string EXTEND_TEXT = std::string("/extend@shenl_werewolfbot ") + std::to_string(EXTEND_TIME);
   const std::vector<std::vector<std::int64_t>> STICKS_DONE = {
     { -681384622, 94371840 }
   };
