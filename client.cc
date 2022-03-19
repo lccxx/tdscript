@@ -15,9 +15,11 @@
 
 namespace tdscript {
   const std::int64_t USER_ID_WEREWOLF = 365229753;  // @shenl_werewolfbot 365229753 or @werewolfbot 175844556;
-  const std::string START_TEXT = "/startchaos@shenl_werewolfbot";
+  const std::string USER_NAME_WEREWOLF = "shenl_werewolfbot";
+  const std::string USER_NAME_MYSELF = "lccc";
+  const std::string START_TEXT = "/startchaos@" + USER_NAME_WEREWOLF;
   const std::int32_t EXTEND_TIME = 123;
-  const std::string EXTEND_TEXT = std::string("/extend@shenl_werewolfbot ") + std::to_string(EXTEND_TIME);
+  const std::string EXTEND_TEXT = std::string("/extend@") + USER_NAME_WEREWOLF + " " + std::to_string(EXTEND_TIME);
   const std::vector<std::vector<std::int64_t>> STICKS_DONE = {
     { -681384622, 561193680896 }
   };
@@ -435,7 +437,7 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
   }
 
   if (players_message.count(chat_id) > 0 && msg_id == players_message.at(chat_id)) {
-    const std::regex owner_regex("lccc");
+    const std::regex owner_regex(USER_NAME_MYSELF);
     if (std::regex_search(text, owner_regex)) {
       has_owner[chat_id] = 1;
     }
@@ -475,7 +477,7 @@ void tdscript::Client::process_werewolf(std::int64_t chat_id, std::int64_t msg_i
     started[chat_id] = 0;
 
     std::smatch done_match;
-    if (std::regex_search(text, done_match, std::regex("lccc:.* ([^ ]*)\n"))) {
+    if (std::regex_search(text, done_match, std::regex(USER_NAME_MYSELF + ":.* ([^ ]*)\n"))) {
       std::string result = done_match[1];
       bool fail = result == "失败";
       std::cout << "Game done " << (fail ? "lose" : "win") << ", '" << result << "'" << std::endl;
