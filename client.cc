@@ -62,7 +62,7 @@ namespace tdscript {
   std::map<std::int64_t, std::vector<std::string>> at_list;  // the '@' list
   std::map<std::int64_t, std::vector<std::int64_t>> player_ids;
   bool werewolf_bot_warning = false;
-  bool werewolf_bot_banned = false;
+  bool werewolf_bot_banned = true;
 
   std::time_t last_task_at = -1;
   std::map<std::uint64_t, std::vector<std::function<void()>>> task_queue;
