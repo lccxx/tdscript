@@ -14,8 +14,8 @@
 #include <utility>
 
 namespace tdscript {
-  const std::int64_t USER_ID_WEREWOLF = 175844556;  // @shenl_werewolfbot 365229753 or @werewolfbot 175844556;
-  const std::string USER_NAME_WEREWOLF = "werewolfbot";
+  const std::int64_t USER_ID_WEREWOLF = 365229753;  // @shenl_werewolfbot 365229753 or @werewolfbot 175844556;
+  const std::string USER_NAME_WEREWOLF = "shenl_werewolfbot";
   const std::string USER_NAME_MYSELF = "lcc";
   const std::string START_TEXT = "/startchaos@" + USER_NAME_WEREWOLF;
   const std::int32_t EXTEND_TIME = 123;
