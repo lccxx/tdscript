@@ -37,7 +37,7 @@ namespace tdscript {
       { 981032009, 357658787840, 2753361346560 },
   };
   const std::map<std::int64_t, std::int64_t> STICKS_REPLY_TO = { {2753361346560, 981032009 } };  // msg_id, user_id
-  const std::map<std::int64_t, std::string> KEY_PLAYER_IDS = { { 981032009, "@TalkIce" } };
+  const std::map<std::int64_t, std::string> KEY_PLAYER_IDS = { { 981032009, "/tuogang@TalkIce" } };
   const std::map<std::string, std::string> KEY_PLAYERS = { };  // { { "KMM", "@JulienKM" } };
 
   const std::int64_t USER_ID_VG = 195053715;
