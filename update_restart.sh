@@ -12,8 +12,8 @@ cmake -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=OFF -DWITH_STATIC=ON -DWITH_IPV6=O
 
 cmake --build build-release
 
-systemctl --user stop tdscript
+systemctl --user stop lcc-tdscript
 
-cp build-release/tdscript ../bin/
+cp build-release/tdscript ../bin/lcc-tdscript
 
-systemctl --user start tdscript
+systemctl --user start lcc-tdscript
