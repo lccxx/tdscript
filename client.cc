@@ -28,8 +28,8 @@ namespace tdscript {
   };
   const std::vector<std::vector<std::int64_t>> STICKS_STARTING = {
       { -681384622, 357654593536 }, { -681384622, 357655642112 },
-      { -1001098611371, 2753360297984, 2753361346560 },
       { -681384622, 356104798208 },
+      // { -1001098611371, 2753360297984, 2753361346560 },  // from_id, msg_id, user_id
   };
   const std::map<std::int64_t, std::int64_t> STICKS_REPLY_TO = { {2753361346560, 981032009 } };  // msg_id, user_id
   const std::map<std::int64_t, std::string> KEY_PLAYER_IDS = { { 981032009, "/tigang@TalkIce" } };
