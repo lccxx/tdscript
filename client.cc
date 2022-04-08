@@ -379,6 +379,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
       task_queue[std::time(nullptr) + 15].push_back([this, chat_id]() {
         if (std::time(nullptr) - vg_last_at > 13) {
           send_text(chat_id, "To village🔙");
+          vg_last_at = std::time(nullptr);
         }
       });
     }
