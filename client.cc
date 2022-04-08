@@ -36,6 +36,7 @@ namespace tdscript {
   const std::map<std::string, std::string> KEY_PLAYERS = { { "KMM", "@JulienKM" } };
 
   const std::int64_t USER_ID_VG = 195053715;
+  std::uint64_t vg_last_at = std::time(nullptr);
 
   bool stop = false;
 
@@ -353,6 +354,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
   }
 
   if (user_id == USER_ID_VG) {
+    vg_last_at = std::time(nullptr);
     if (text.find("Work is finished, my lord!") != std::string::npos) {
       send_text(chat_id, "/work");
     }
@@ -373,6 +375,12 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
         || text.find("You sold") == 0
         || text.find("You can choose a quest") == 0) {
       send_text(chat_id, "⭐️⭐️⭐️Save the village");
+
+      task_queue[std::time(nullptr) + 15].push_back([this, chat_id]() {
+        if (std::time(nullptr) - vg_last_at > 13) {
+          send_text(chat_id, "To village🔙");
+        }
+      });
     }
     if (text.find("The bandits were some strong guys") != std::string::npos) {
       send_text(chat_id, "Send reinforcements! 🗡");
