@@ -377,7 +377,7 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
         || text.find("You can choose a quest") == 0) {
       if (!vg_prepare_to_quest) {
         vg_prepare_to_quest = true;
-        task_queue[std::time(nullptr) + 9].push_back([this, chat_id]() {
+        task_queue[std::time(nullptr) + 7].push_back([this, chat_id]() {
           send_text(chat_id, "⭐️⭐️⭐️Save the village");
           vg_prepare_to_quest = false;
 
