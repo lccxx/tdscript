@@ -37,6 +37,7 @@ namespace tdscript {
 
   const std::int64_t USER_ID_VG = 195053715;
   std::uint64_t vg_last_at = std::time(nullptr);
+  bool vg_prepare_to_quest = false;
 
   bool stop = false;
 
@@ -366,6 +367,31 @@ void tdscript::Client::process_message(std::int64_t chat_id, std::int64_t msg_id
     }
     if (text.find("You sold") != std::string::npos && text.find("/work") != std::string::npos) {
       send_text(chat_id, "/work");
+    }
+    if (text.find("Bandits attacked a village.") != std::string::npos) {
+      send_text(chat_id, "Run quest🗡");
+    }
+    if (text.find("These bandits were cowards!") != std::string::npos
+        || text.find("Your squad came to the rescue") != std::string::npos
+        || text.find("You sold") == 0
+        || text.find("You can choose a quest") == 0) {
+      if (!vg_prepare_to_quest) {
+        vg_prepare_to_quest = true;
+        task_queue[std::time(nullptr) + 9].push_back([this, chat_id]() {
+          send_text(chat_id, "⭐️⭐️⭐️Save the village");
+          vg_prepare_to_quest = false;
+
+          task_queue[std::time(nullptr) + 15].push_back([this, chat_id]() {
+            if (std::time(nullptr) - vg_last_at > 13) {
+              send_text(chat_id, "To village🔙");
+              vg_last_at = std::time(nullptr);
+            }
+          });
+        });
+      }
+    }
+    if (text.find("The bandits were some strong guys") != std::string::npos) {
+      send_text(chat_id, "Send reinforcements! 🗡");
     }
     if (text.find("Your opponent is") == 0) {
       std::smatch need_match;
